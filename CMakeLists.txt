@@ -37,5 +37,5 @@ message("HEADER_FILES is set to ${HEADER_FILES}" )
 message("SOURCE_FILES is set to ${SOURCE_FILES}" )
 
 #---Create  a main program using the library
-add_executable(makeNiceTree makeNiceTree.cxx) 
-target_link_libraries(makeNiceTree ${ROOT_LIBRARIES} lifetime)
+add_executable(makeTGraphs makeTGraphs.cxx) 
+target_link_libraries(makeTGraphs ${ROOT_LIBRARIES} lifetime)

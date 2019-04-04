@@ -15,8 +15,13 @@ class RawDigitiser: public TObject
   RawDigitiser();
   ~RawDigitiser();
 
-  Int_t run;
-
+  Double_t timeStamp;
+  Double_t ADC;
+  Int_t baseline;
+  Int_t trigger;
+  Int_t longGate;
+  Int_t shortGate;
+  Int_t zero;
   ClassDef(RawDigitiser, 1);
   
 };

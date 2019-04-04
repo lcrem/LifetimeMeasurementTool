@@ -9,6 +9,6 @@
 #define LIFETIMECONVENTIONS_H
 #include <string>
 
-const std::string whereIsMyPrMdata="/unix/dune/hptpctof/";
+const std::string whereIsMyPrMdata="/Users/linda/DUNE/exampleDataFromDigitiser/";
 
 #endif //LIFETIMECONVENTIONS_H
