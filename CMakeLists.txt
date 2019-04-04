@@ -14,9 +14,9 @@ find_package(ROOT REQUIRED COMPONENTS RIO Net)
 #---Define useful ROOT functions and macros (e.g. ROOT_GENERATE_DICTIONARY)
 include(${ROOT_USE_FILE})
 
-file(GLOB HEADER_FILES "Raw*.h" )
+file(GLOB HEADER_FILES "Raw*.h" "Useful*.h")
 
-file(GLOB_RECURSE SOURCE_FILES Raw*.cxx)
+file(GLOB_RECURSE SOURCE_FILES Raw*.cxx Useful*.cxx)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 set(DICTNAME G__${libname})
@@ -39,3 +39,5 @@ message("SOURCE_FILES is set to ${SOURCE_FILES}" )
 #---Create  a main program using the library
 add_executable(makeTGraphs makeTGraphs.cxx) 
 target_link_libraries(makeTGraphs ${ROOT_LIBRARIES} lifetime)
+add_executable(findAllAverages findAllAverages.cxx) 
+target_link_libraries(findAllAverages ${ROOT_LIBRARIES} lifetime)
