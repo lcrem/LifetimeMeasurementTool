@@ -113,8 +113,8 @@ int main(int argc, char *argv[]){
     double* timebase_value;
     timebase_value = new double[nLines];
 
-    double* adc_value;
-    adc_value = new double[nLines];
+    double* amplitudeVolts;
+    amplitudeVolts = new double[nLines];
 
     Int_t longgate_value;
     Int_t longgate_start_bin;
@@ -136,7 +136,7 @@ int main(int argc, char *argv[]){
       // Fill arrays and tree
  
       timebase_value[counter] = raw.timeStamp;
-      adc_value[counter] = raw.ADC;
+      amplitudeVolts[counter] = raw.ADC*1e-3; // convert ADC (mV) to V
       
       longgate_previous = longgate_value;
       
@@ -151,7 +151,7 @@ int main(int argc, char *argv[]){
 
       if (counter == pointsCounter - 1) {
 	
-	TGraph *g = new TGraph(counter, timebase_value, adc_value);
+	TGraph *g = new TGraph(counter, timebase_value, amplitudeVolts);
 	g->Write(Form("graph%d",countGraphs));
 	counter = 0;
 	countGraphs++;
