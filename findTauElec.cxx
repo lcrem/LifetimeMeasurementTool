@@ -23,8 +23,8 @@ using namespace std;
 
 double xmin = 0.05E-3;
 double xmax = 0.015E-3;
-double ymin = -0.8;
-double ymax = +0.8;
+double ymin = -2;
+double ymax = +2;
 
 
 int main(int argc, char *argv[]){
@@ -146,7 +146,7 @@ int main(int argc, char *argv[]){
     TF1 *func = new TF1("func",UsefulFunctions::greenFunction,-0.30E-3,1.2E-3,4);
         
     //par[0] = Q*G, par[1]=tau_el
-    func->SetParameters(2.6, 43, 20,3);
+    func->SetParameters(2.6, 90, 20,3);
     func->SetParName(0, "Gain x Q ");
     //func->SetParLimits(0, 2, 3);
         

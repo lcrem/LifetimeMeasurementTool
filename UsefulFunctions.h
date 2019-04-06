@@ -103,7 +103,7 @@ namespace UsefulFunctions {
   /**
    *
    * @param x : time in s
-   * @param par : [0] GQ, [1] tau in us, [2] rise in us, [3] shift in us
+   * @param par : [0] Gain x Q, [1] tau in us, [2] rise in us, [3] shift in us
    */  
   Double_t greenFunction(Double_t *x, Double_t *par);
 
