@@ -12,7 +12,7 @@
 const std::string whereIsMyPrMdata="/Users/linda/DUNE/exampleDataFromDigitiser/";
 
 // First Purity Monitor machined at UCL (PrM1)
-Double_t PrM1distance[3] = {0.01823, 0.16424, 0.0985};
+Double_t PrM1distance[3] = {0.01823, 0.16424, 0.00985};
 // ICARUS Purity Monitor refurbished (PrM2)
 Double_t PrM2distance[3] = {0.016, 0.15, 0.085};
 
