@@ -504,3 +504,24 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
 
   return 1;
 }
+
+TGraph *UsefulFunctions::translateGraph(const TGraph *grWave, Double_t deltaT){
+  Int_t N = grWave->GetN();
+  Double_t *X=grWave->GetX();
+  Double_t *Y=grWave->GetY();
+  Double_t *newX = new Double_t[N];
+  for(int i=0;i<N;i++)
+    newX[i]=X[i]+deltaT;
+  TGraph *grOut = new TGraph(N,newX,Y);
+  delete [] newX;
+  return grOut;
+}
+
+Int_t UsefulFunctions::getSmoothingNumber(double deltat, double tdrift){
+
+  int nsigma = 10;
+  int nsmooth = tdrift/(nsigma*2*deltat);
+  if (nsmooth>20) nsmooth=20;
+  return  nsmooth;
+
+}

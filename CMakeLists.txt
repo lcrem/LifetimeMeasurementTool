@@ -39,5 +39,9 @@ message("SOURCE_FILES is set to ${SOURCE_FILES}" )
 #---Create  a main program using the library
 add_executable(makeTGraphs makeTGraphs.cxx) 
 target_link_libraries(makeTGraphs ${ROOT_LIBRARIES} lifetime)
+
 add_executable(findAllAverages findAllAverages.cxx) 
 target_link_libraries(findAllAverages ${ROOT_LIBRARIES} lifetime)
+
+add_executable(calculateLifetimeWithScope calculateLifetimeWithScope.cxx) 
+target_link_libraries(calculateLifetimeWithScope ${ROOT_LIBRARIES} lifetime)

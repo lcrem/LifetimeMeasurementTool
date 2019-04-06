@@ -16,7 +16,7 @@ namespace UsefulFunctions {
   //! Just average - calculates the average of n graphs
   /**
    *
-   * @param  numGraph : number of graphs to average
+   * @param  numGraphs : number of graphs to average
    * @param  grPtrPtr : array of pointers to graphs
    * @return pointer to TGraph
    */
@@ -25,8 +25,8 @@ namespace UsefulFunctions {
   //! Put baseline to 0 before averaging n graphs
   /**
    *
-   * @param  numGraph : number of graphs to average
-   * @param  grPtrPtr : array of pointers to graphs
+   * @param  numGraphs : number of graphs to average
+   * @param  graphs : array of pointers to graphs
    * @return pointer to TGraph
    */
   TGraph *getZeroedAverage(Int_t numGraphs, TGraph **graphs);
@@ -35,7 +35,7 @@ namespace UsefulFunctions {
   /**
    *
    * @param  filename : input name of rootfile containing the graphs to average (graphs need to be called "graph%i")
-   * @param  numGraph : number of graphs to average
+   * @param  nmax : number of graphs to average
    * @param  g : output array of averaged graphs 
    */
   Int_t avgSomeGraphs(std::string filename, int nmax, TGraph **g);
@@ -67,10 +67,7 @@ namespace UsefulFunctions {
   /**
    *
    * @param  x : array of time in s
-   * @param par[0] : sigma
-   * @param par[1] : tau electronics in us
-   * @param par[2] : integrated charge
-   * @param par[3] : t0 in s
+   * @param par : [0] sigma, [1] : tau electronics in us, [2] : integrated charge, [3] : t0 in s
    */
   Double_t fittingFunction(Double_t *x, Double_t *par);
 
@@ -85,6 +82,22 @@ namespace UsefulFunctions {
    * @param lifetime : calculated lifetime [0] approximation, [1] full formula
    */
   Int_t calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, double tTheory[3], double lifetime[2]);
+
+  //! Translate graph
+  /**
+   *
+   * @param grWave : TGraph input output
+   * @param deltaT : deltaT to translate
+   */
+  TGraph *translateGraph(const TGraph *grWave, Double_t deltaT);
+
+  //! Get smoothing number - TODO GET RID OF THIS FUNCTION, LC: I don't like it
+  /**
+   *
+   * @param deltat : sampling time
+   * @param tdrift : expected drift time 
+   */  
+  Int_t getSmoothingNumber(double deltat, double tdrift);
 }
 
 #endif //USEFULFUNCTIONS_H
