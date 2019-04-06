@@ -525,3 +525,28 @@ Int_t UsefulFunctions::getSmoothingNumber(double deltat, double tdrift){
   return  nsmooth;
 
 }
+
+
+Double_t UsefulFunctions::greenFunction(Double_t *x, Double_t *par){
+  
+  // x[0] is in seconds, so we need to convert par[3] from musec to sec
+  double t = x[0];
+  double GQ = par[0];
+  double tau = par[1]*1e-6;
+  double rise = par[2]*1e-6;
+  double shift = par[3]*1e-6;
+  
+  double heaviside;
+  if (t<0) heaviside=0;
+  else heaviside = 1;
+  
+  //double y = (-GQ)*exp(-t/(tau))*heaviside;
+  
+  double y;
+  double tmp1 = GQ*(-1-erf((0+shift)/rise));
+  double tmp2 = -GQ*exp(-0/tau);
+  if (t>0) y = -GQ*exp(-t/tau);
+  else y = GQ*(-1-erf((t+shift)/rise))*tmp2/tmp1;
+  
+  return y;
+}

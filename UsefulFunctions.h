@@ -98,6 +98,15 @@ namespace UsefulFunctions {
    * @param tdrift : expected drift time 
    */  
   Int_t getSmoothingNumber(double deltat, double tdrift);
+
+  //! Green function
+  /**
+   *
+   * @param x : time in s
+   * @param par : [0] GQ, [1] tau in us, [2] rise in us, [3] shift in us
+   */  
+  Double_t greenFunction(Double_t *x, Double_t *par);
+
 }
 
 #endif //USEFULFUNCTIONS_H

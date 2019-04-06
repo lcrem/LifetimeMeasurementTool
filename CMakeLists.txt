@@ -46,6 +46,8 @@ target_link_libraries(findAllAverages ${ROOT_LIBRARIES} lifetime)
 add_executable(calculateLifetimeWithScope calculateLifetimeWithScope.cxx) 
 target_link_libraries(calculateLifetimeWithScope ${ROOT_LIBRARIES} lifetime)
 
+add_executable(findTauElec findTauElec.cxx) 
+target_link_libraries(findTauElec ${ROOT_LIBRARIES} lifetime)
 
 
 ################### DOXYGEN STUFF
