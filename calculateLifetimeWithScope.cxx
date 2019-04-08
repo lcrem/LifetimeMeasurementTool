@@ -32,31 +32,39 @@ void getFields (string fieldname, double fields[3]);
 string howManyAvg[4] = {"avg20", "avg50", "avg100", "avg200"};
 int howManyGraphs[4] = {50, 20, 10, 5};
 
+TGraph *smoothGraph(TGraph *g, int nnn);
 
 int main(int argc, char *argv[]){
 
   
-  string basename, fieldname, divname;
+  string basename, fieldname;
+  int whichPrM=0;
 
   if((argc!=4)){
-    std::cerr << "Usage : " << argv[0] << " [basename] [fieldname] [divname]" << std::endl;
+    std::cerr << "Usage : " << argv[0] << " [basename] [fieldname] [whichPrM]" << std::endl;
     return 1;
   } else {
     basename += argv[1];
     fieldname += argv[2];
-    divname += argv[3];
+    whichPrM = atoi(argv[3]);
   }
 
-  string outfile    = basename + fieldname + "_" + divname + "_signals_withErrors.root";
-  string outtxtfile = basename + fieldname + "_" + divname + "_lifetime_withErrors.txt";
+  string outfile    = basename + fieldname + "_signals_withErrors.root";
+  string outtxtfile = basename + fieldname + "_lifetime_withErrors.txt";
   
   double fields[3], distance[3], tTheory[3];
   getFields (fieldname, fields);
   //distances from K to GK, GK to GA, GA to A as measured on 12.06.2018 by Laura
-  distance[0] = 0.01823; // 1.8cm
-  distance[1] = 0.16424; // 1.0cm
-  distance[2] = 0.0985; // 1.0cm
-  
+  if (whichPrM==0){
+    distance[0] = PrM1distance[0];
+    distance[1] = PrM1distance[1];
+    distance[2] = PrM1distance[2];
+  } else {
+    distance[0] = PrM2distance[0];
+    distance[1] = PrM2distance[1];
+    distance[2] = PrM2distance[2];
+
+  }
   cout << "Output file is " << outfile << endl;
   
   string chname[2] = {"ch3", "ch4"};
@@ -64,7 +72,7 @@ int main(int argc, char *argv[]){
   
   double timedelay=0;
   
-  string stimedelay = basename + fieldname + "_FibreIn_" + divname + ".ch1.traces_averages.root";
+  string stimedelay = basename + fieldname  + ".ch1.traces_averages.root";
   TFile *ftimedelay = new TFile (stimedelay.c_str(), "read");
   TGraph *gtimedelay = (TGraph*)ftimedelay->Get("justAvg");
   double *xTimeDelay = gtimedelay->GetX();
@@ -106,7 +114,7 @@ int main(int argc, char *argv[]){
       TGraph *gdiff[2];
       
       for (int ich=0; ich<2; ich++){
-	string f1 = basename + fieldname + "_FibreIn_" + divname + "." + chname[ich] +".traces_averages.root";
+	string f1 = basename + fieldname  + "." + chname[ich] +".traces_averages.root";
         
 	TFile *file1 = new TFile(f1.c_str(), "read");
 
@@ -117,17 +125,19 @@ int main(int argc, char *argv[]){
         
 	file1->Close();
         
-	g1 = UsefulFunctions::translateGraph(g1, -timedelay);
-        
+	//	g1 = UsefulFunctions::translateGraph(g1, -timedelay);
+
 	UsefulFunctions::zeroBaseline(g1);
 	
+	//        g1 = smoothGraph(g1, smoothing[ich]);
+
 	gdiff[ich] = (TGraph*)g1->Clone();
 
       }
 
       double lifetime[2];
       
-      int ok = UsefulFunctions::calculateLifetime(gdiff[1], gdiff[0],  0, tTheory, lifetime);
+      int ok = UsefulFunctions::calculateLifetime(gdiff[1], gdiff[0],  whichPrM, tTheory, lifetime);
       
       if (ok==1) hpurity[inum]->Fill(lifetime[0]);
 
@@ -214,3 +224,32 @@ void getFields (string fieldname, double fields[3]){
   cout << " The three fields are " << fields[0] << " " << fields[1] << " " << fields[2] << " V/cm" << endl;
 }
 
+TGraph *smoothGraph(TGraph *g, int nnn){
+
+  int n = g->GetN();
+  double *x = g->GetX();
+  double *y = g->GetY();
+  double newy[100010];
+  double newx[100010];
+
+  int count=0;
+  int insidecount=0;
+  
+  for (int i=nnn; i<(n-nnn); i++){
+    newy[count]=0;
+    
+    insidecount=0;
+    for (int j=i-nnn; j<i+nnn; j++){
+      newy[count]+=(y[j]);
+      insidecount++;
+    }
+    newy[count]/=(insidecount*1.);
+    newx[count] = x[i];
+    count++;
+  }
+
+  TGraph *gnew = new TGraph(count, newx, newy);
+
+  return gnew;
+
+}
