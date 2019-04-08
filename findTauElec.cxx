@@ -21,8 +21,8 @@
 
 using namespace std;
 
-double xmin = 0.05E-3;
-double xmax = 0.015E-3;
+double xmin = -0.05E-3;
+double xmax = 0.4E-3;
 double ymin = -2;
 double ymax = +2;
 
@@ -50,24 +50,25 @@ int main(int argc, char *argv[]){
   string chnamenice[2] = {"anode", "Cathode"};
   
 
-  double timedelay=0;
-  
-  string stimedelay = basename + fieldname + ".ch1.traces_averages.root";
-  TFile *ftimedelay = new TFile (stimedelay.c_str(), "read");
-  TGraph *gtimedelay = (TGraph*)ftimedelay->Get("justAvg");
-  double *xTimeDelay = gtimedelay->GetX();
-  double *yTimeDelay = gtimedelay->GetY();
-  double baseY = yTimeDelay[0];
-  double step = TMath::MaxElement(gtimedelay->GetN(), yTimeDelay)*0.2;
-  double timeStep = xTimeDelay[1]-xTimeDelay[0];
-  for (int ip=0; ip<gtimedelay->GetN(); ip++){
-    if (yTimeDelay[ip]>(step)){
-      timedelay = xTimeDelay[ip];
-      break;
-    }
-  }
-  ftimedelay->Close();
-  cout << "The time delay is " << timedelay << endl;
+ double timedelay=0;
+
+ string stimedelay = basename + fieldname + ".ch1.traces_averages.root";
+ TFile *ftimedelay = new TFile (stimedelay.c_str(), "read");
+ TGraph *gtimedelay = (TGraph*)ftimedelay->Get("justAvg");
+ double *xTimeDelay = gtimedelay->GetX();
+ double *yTimeDelay = gtimedelay->GetY();
+ double baseY = yTimeDelay[0];
+ double step = TMath::MaxElement(gtimedelay->GetN(), yTimeDelay)*0.9;
+ double timeStep = xTimeDelay[1]-xTimeDelay[0];
+ for (int ip=0; ip<gtimedelay->GetN(); ip++){
+   if (yTimeDelay[ip]>(step)){
+     timedelay = xTimeDelay[ip];
+     break;
+   }
+ }
+ ftimedelay->Close();
+ // timedelay=0;
+ cout << "The time delay is " << timedelay << endl;
   
   double newy[20000];
   double newx[20000];
@@ -90,15 +91,15 @@ int main(int argc, char *argv[]){
     
     g1 = UsefulFunctions::translateGraph(g1, -timedelay);
         
-    int N = g1->GetN();
-    double *x = g1->GetX();
-    double *y1 = g1->GetY();
-    for (int i=0; i<N; i++){
-      newy[i] = y1[i];
-      newx[i] = x[i];
-    }
+    // int N = g1->GetN();
+    // double *x = g1->GetX();
+    // double *y1 = g1->GetY();
+    // for (int i=0; i<N; i++){
+    //   newy[i] = y1[i];
+    //   newx[i] = x[i];
+    // }
     
-    TGraph *gdiff = new TGraph(N, newx, newy);
+    // TGraph *gdiff = new TGraph(N, newx, newy);
       
     TCanvas *c = new TCanvas("c");
     c->Divide(1,2);
@@ -108,16 +109,16 @@ int main(int argc, char *argv[]){
     g1->GetYaxis()->SetRangeUser(ymin, ymax);
     g1->Draw("Al");
     c->cd(2);
-    gdiff->GetXaxis()->SetRangeUser(xmin, xmax);
-    gdiff->GetYaxis()->SetRangeUser(ymin, ymax);
-    gdiff->Draw("Al");
+    g1->GetXaxis()->SetRangeUser(xmin, xmax);
+    g1->GetYaxis()->SetRangeUser(ymin, ymax);
+    g1->Draw("Al");
     
     
     out->cd();
     c->Write((chnamenice[ich]+"_canvas").c_str());
-    gdiff->Write((chnamenice[ich]).c_str());
+    g1->Write((chnamenice[ich]).c_str());
     
-    UsefulFunctions::zeroBaseline(gdiff);
+    UsefulFunctions::zeroBaseline(g1);
     // TGraph *gdiff2 = UsefulFunctions::smoothGraph(gdiff, 10);
     
     // gdiff2->Write((chnamenice[ich]+"_smoothed").c_str());
@@ -129,8 +130,8 @@ int main(int argc, char *argv[]){
     gStyle->SetStatH(0.2);
     
     TCanvas *ctemp = new TCanvas ("ctemp");
-    gdiff->SetTitle(Form("%s;Time (s);Amplitude (V)", preamp.c_str()));
-    gdiff->Draw("Al");
+    g1->SetTitle(Form("%s;Time (s);Amplitude (V)", preamp.c_str()));
+    g1->Draw("Al");
     // TF1 *func = new TF1("func",greenFunction2,-0.1E-3,0.7E-3,4);
         
     // func->SetParameters(0.01, 0.1, 500, 6);
@@ -143,15 +144,15 @@ int main(int argc, char *argv[]){
     // //func->SetParLimits(2, 490, 510);
     // func->SetParName(3, "t_0 (#mus)");
         
-    TF1 *func = new TF1("func",UsefulFunctions::greenFunction,-0.30E-3,1.2E-3,4);
+    TF1 *func = new TF1("func",UsefulFunctions::greenFunction,xmin, xmax,4);
         
     //par[0] = Q*G, par[1]=tau_el
-    func->SetParameters(2.6, 90, 20,3);
+    func->SetParameters(1., 45, 0.6, 0.6);
     func->SetParName(0, "Gain x Q ");
     //func->SetParLimits(0, 2, 3);
         
     func->SetParName(1, "Tau (#mus)");
-    //func->SetParLimits(1, 40, 45);
+    func->SetParLimits(1, 40, 120);
 
     func->SetParName(2, "Rise (#mus)");
     func->SetParName(3, "Shift (#mus)");
@@ -159,7 +160,7 @@ int main(int argc, char *argv[]){
     //func->SetParName(2, "t_0 (#mus)");
     //func->SetParLimits(2, -10, 10);
         
-    gdiff->Fit("func","R");
+    g1->Fit("func","R");
     func->Draw("same");
         
     double tauelec = func->GetParameter(1)*func->GetParameter(2);
