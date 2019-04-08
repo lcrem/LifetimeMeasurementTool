@@ -17,9 +17,9 @@ Double_t PrM1distance[3] = {0.01823, 0.16424, 0.00985};
 Double_t PrM2distance[3] = {0.018, 0.15, 0.01};
 
 
-// pre-amplifiers tau electronics for PrM1 {K, A} and relative gain A/K TODO: APPLY CALIBRATION AND CHECK THESE NUMBERS !
-Double_t PrM1preamp[3] = {91.5031*1e-6, 43.4835*1e-6, 0.89512};
-// pre-amplifiers tau electronics for PrM1 {K, A} and relative gain A/K
-Double_t PrM2preamp[3] = {90.*1e-6, 90.*1e-6, 1.};
+// pre-amplifiers tau electronics for PrM1 {K, A} and relative gain A/K , Preamp B on K, Preamp A on A
+Double_t PrM1preamp[3] = {101.*1e-6, 269.*1e-6, 0.9};
+// pre-amplifiers tau electronics for PrM2 {K, A} and relative gain A/K , Preamp D on K, Preamp C on A
+Double_t PrM2preamp[3] = {101.*1e-6, 262.*1e-6, 1.1};
 
 #endif //LIFETIMECONVENTIONS_H
