@@ -197,6 +197,9 @@ Double_t UsefulFunctions::getCorrectionFactor(double fittedDriftTime, double tau
   double laura = (1.-exp(-(fittedDriftTime)*(1./tauelec + 1./taulife)))/(fittedDriftTime*(1./tauelec + 1./taulife));
   double alan  = (exp(-fittedDriftTime/tauelec)-exp(-fittedDriftTime/taulife))/(fittedDriftTime*(1/taulife - 1/tauelec));
   
+  std::cout << "Fitted drift time " << fittedDriftTime << std::endl;
+  std::cout << "Tauelec " << tauelec << std::endl;
+  std::cout << "Taulife " << taulife << std::endl;
   std::cout << "Correction laura " << laura << "; alan " << alan << std::endl;
   return laura;
   
@@ -223,10 +226,6 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
   double *xK  = gK->GetX();
   double *yK  = gK->GetY();
       
-  int nA      = gA->GetN();
-  double *xA  = gA->GetX();
-  double *yA  = gA->GetY();
-
   Double_t tauelecK, tauelecA, gainAoverK;
   
   if (whichPrM==0) {
@@ -248,13 +247,15 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
   double fittedAstartTime = 0;
       
   int loc;
-  double peak;
+  double peak=0;
         
-  // cout << " Cathode field " << fields[0] << endl;
-      
+  std::cout << " Cathode field " << tTheory[0] << std::endl;
+  
   for (int ip=nK-2; ip>0; ip--){
     if (xK[ip]<0) break;
-    if (yK[ip]<peak && (xK[ip]>(tTheory[0]-0.1E-3)) && (xK[ip]<(tTheory[0]+0.1E-3)) ){
+    //    if (yK[ip]<peak && (xK[ip]>(tTheory[0]-100.E-6)) && (xK[ip]<(tTheory[0]+100.E-6)) ){
+    if (yK[ip]<peak){
+      std::cout  << " " << ip << " " << xK[ip] << " " << yK[ip] << " " << peak << std::endl;
       peak = yK[ip];
       loc = ip;
     }
@@ -262,45 +263,51 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
       
   fittedKtime = xK[loc];
   fittedK = yK[loc];
-      
+  std::cout << "PRINTOUT AT LINE " << __LINE__ << std::endl;
+  std::cout << "K time and K " << fittedKtime << " " << fittedK << std::endl;
   fittedKstartTime = 0.;
       
-  TF1 *funcK = new TF1("funcK",fittingFunction,0.,0.9E-3,4);
-  funcK->SetParameters(5,  tauelecK*1E6, -0.002, (tTheory[0])*1e6);
-  // funcK->FixParameter(0, 5);
-  // funcK->FixParameter(1, 43);
-  // funcK->FixParameter(2, 0.002);
-  // funcK->FixParameter(3, (tTheory[0]+tTheory[1])*1e6);
-  // funcK->SetParLimits(0, 1, 50);
-  funcK->SetParLimits(1, tauelecK*1E6*0.95, tauelecK*1E6*1.05);
-  // funcK->SetParLimits(2, 0, 0.1);
-  // funcK->SetParLimits(3, 10, 500);
-  funcK->SetParName(0, "#sigma");
-  funcK->SetParName(1, "#tau_{D}");
-  funcK->SetParName(2, "a");
-  funcK->SetParName(3, "t_0");
-  gK->Fit("funcK", "R", "", 0, tTheory[0]+tTheory[1]-0.1E-3);
+  // TF1 *funcK = new TF1("funcK",fittingFunction,0.,0.9E-3,4);
+  // funcK->SetParameters(5,  tauelecK*1E6, -0.002, (tTheory[0])*1e6);
+  // // funcK->FixParameter(0, 5);
+  // // funcK->FixParameter(1, 43);
+  // // funcK->FixParameter(2, 0.002);
+  // // funcK->FixParameter(3, (tTheory[0]+tTheory[1])*1e6);
+  // // funcK->SetParLimits(0, 1, 50);
+  // funcK->SetParLimits(1, tauelecK*1E6*0.95, tauelecK*1E6*1.05);
+  // // funcK->SetParLimits(2, 0, 0.1);
+  // // funcK->SetParLimits(3, 10, 500);
+  // funcK->SetParName(0, "#sigma");
+  // funcK->SetParName(1, "#tau_{D}");
+  // funcK->SetParName(2, "a");
+  // funcK->SetParName(3, "t_0");
+  // gK->Fit("funcK", "R", "", 0, tTheory[0]+tTheory[1]-0.1E-3);
 
   
   
-      
+    
   double tempx, tempy;
-  for (int ip=0; ip<nK; ip++){
-    tempx = xK[ip];
-    tempy = funcK->Eval(xK[ip]);
-    if (tempy<0.01*fittedK){
-      // cout << ip << " " << tempx << " " << tempy << " " << endl;
-      fittedKstartTime = tempx;
-      break;
-    }
-  }
-  if (fittedKstartTime<0) fittedKstartTime=0;
-  fittedKtime = funcK->GetMinimumX();
-  fittedK = funcK->GetMinimum();
-      
+  // for (int ip=0; ip<nK; ip++){
+  //   tempx = xK[ip];
+  //   tempy = funcK->Eval(xK[ip]);
+  //   if (tempy<0.01*fittedK){
+  //     std::cout << ip << " " << tempx << " " << tempy << " " << std::endl;
+  //     fittedKstartTime = tempx;
+  //     break;
+  //   }
+  // }
+  // if (fittedKstartTime<0) fittedKstartTime=0;
+  // fittedKtime = funcK->GetMinimumX();
+  // fittedK = funcK->GetMinimum();
+  
 
   
   // cout << " Anode field " << fields[2] << endl;
+  int nA      = gA->GetN();
+  double *xA  = gA->GetX();
+  double *yA  = gA->GetY();
+
+
   loc = TMath::LocMax(nA,yA);
   peak = -99999.;
   for (int ip=nA-2; ip>0; ip--){
@@ -528,25 +535,25 @@ Int_t UsefulFunctions::getSmoothingNumber(double deltat, double tdrift){
 
 
 Double_t UsefulFunctions::greenFunction(Double_t *x, Double_t *par){
-  
+
   // x[0] is in seconds, so we need to convert par[3] from musec to sec
   double t = x[0];
   double GQ = par[0];
   double tau = par[1]*1e-6;
   double rise = par[2]*1e-6;
   double shift = par[3]*1e-6;
-  
+
   double heaviside;
   if (t<0) heaviside=0;
   else heaviside = 1;
-  
+
   //double y = (-GQ)*exp(-t/(tau))*heaviside;
-  
+
   double y;
   double tmp1 = GQ*(-1-erf((0+shift)/rise));
   double tmp2 = -GQ*exp(-0/tau);
   if (t>0) y = -GQ*exp(-t/tau);
   else y = GQ*(-1-erf((t+shift)/rise))*tmp2/tmp1;
-  
+
   return y;
 }
