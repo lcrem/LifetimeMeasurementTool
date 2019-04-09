@@ -29,8 +29,8 @@ double ymax = +0.8;
 void getFields (string fieldname, double fields[3]);
 
 
-string howManyAvg[4] = {"avg20", "avg50", "avg100", "avg200"};
-int howManyGraphs[4] = {50, 20, 10, 5};
+string howManyAvg[4] = {"justAvg", "avg50", "avg100", "avg200"};
+int howManyGraphs[4] = {1, 20, 10, 5};
 
 TGraph *smoothGraph(TGraph *g, int nnn);
 
@@ -104,8 +104,13 @@ int main(int argc, char *argv[]){
   
   TH1D *hpurity[5];
 
+  bool saveCanvas;
+  
+  for (int inum=0; inum<4; inum++){
 
-  for (int inum=1; inum<4; inum++){
+    if(inum==0) saveCanvas=true;
+    else saveCanvas=false;
+
     hpurity[inum]= new TH1D (Form("hpurity_%d", inum), "", 1000, 0, 0.005);
     double finalNumbers[2][3]; // [0 anode, 1 cathode] [0 amplitude, 1 start time, 2 peak time]
 
@@ -118,8 +123,11 @@ int main(int argc, char *argv[]){
         
 	TFile *file1 = new TFile(f1.c_str(), "read");
 
-	
-	TGraph *g1 = (TGraph*)file1->Get(Form("%s/g%s_%d", howManyAvg[inum].c_str(), howManyAvg[inum].c_str(), igraph));
+	string gname ;
+	if (howManyGraphs[inum]==1) gname+= "justAvg";
+	else gname += Form("%s/g%s_%d", howManyAvg[inum].c_str(), howManyAvg[inum].c_str(), igraph);
+
+	TGraph *g1 = (TGraph*)file1->Get(gname.c_str());
 	cout << f1 << " " <<  Form("%s/g%s_%d", howManyAvg[inum].c_str(), howManyAvg[inum].c_str(), igraph) << endl;
 	g1->SetName("g1");
         
@@ -137,7 +145,7 @@ int main(int argc, char *argv[]){
 
       double lifetime[2];
       
-      int ok = UsefulFunctions::calculateLifetime(gdiff[1], gdiff[0],  whichPrM, tTheory, lifetime);
+      int ok = UsefulFunctions::calculateLifetime(gdiff[1], gdiff[0],  whichPrM, tTheory, lifetime, saveCanvas);
       
       if (ok==1) hpurity[inum]->Fill(lifetime[0]);
 

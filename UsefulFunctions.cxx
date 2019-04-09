@@ -6,6 +6,7 @@
 #include "TF1.h"
 #include "Math/WrappedTF1.h"
 #include "Math/BrentRootFinder.h"
+#include "TCanvas.h"
 #include <iostream>
 
 TGraph *UsefulFunctions::justAverage(Int_t numGraphs, TGraph **grPtrPtr)
@@ -220,7 +221,7 @@ Double_t UsefulFunctions::fittingFunction(Double_t *x, Double_t *par){
 
 
 
-Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, double tTheory[3], double lifetime[2]){
+Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, double tTheory[3], double lifetime[2], bool saveCanvas){
       
   int nK      = gK->GetN();
   double *xK  = gK->GetX();
@@ -522,6 +523,15 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
   printf("lifetime2: %12.4e \n",  lifetime[1] );
 
 
+  if (saveCanvas){
+    TCanvas *c = new TCanvas("c");
+    gK->Draw("Al");
+    gA->Draw("l");
+
+    c->Print("Lastlifetime.png");
+    c->Print("Lastlifetime.root");
+  }
+  
   return 1;
 }
 

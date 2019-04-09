@@ -80,8 +80,9 @@ namespace UsefulFunctions {
    * @param whichPrM : 0 is PrM1 and 1 is PrM2
    * @param tTheory : expected drift times between K-GK, GK-GA, GA-A
    * @param lifetime : calculated lifetime [0] approximation, [1] full formula
+   * @param saveCanvas : boolean variable, save canvas or not
    */
-  Int_t calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, double tTheory[3], double lifetime[2]);
+  Int_t calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, double tTheory[3], double lifetime[2], bool saveCanvas);
 
   //! Translate graph
   /**
