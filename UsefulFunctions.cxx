@@ -522,6 +522,7 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
 
   if (saveCanvas){
     TCanvas *c = new TCanvas("c");
+    gK->GetYaxis()->SetRangeUser(QK*1.2, QA*1.2);
     gK->Draw("Al");
     gA->Draw("l");
 
