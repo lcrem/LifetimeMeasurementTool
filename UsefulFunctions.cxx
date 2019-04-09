@@ -267,9 +267,7 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
   
   for (int ip=nK-2; ip>0; ip--){
     if (xK[ip]<0) break;
-    //    if (yK[ip]<peak && (xK[ip]>(tTheory[0]-100.E-6)) && (xK[ip]<(tTheory[0]+100.E-6)) ){
-    if (yK[ip]<peak){
-      std::cout  << " " << ip << " " << xK[ip] << " " << yK[ip] << " " << peak << std::endl;
+    if (yK[ip]<peak && (xK[ip]>(tTheory[0]-100.E-6)) && (xK[ip]<(tTheory[0]+100.E-6)) ){
       peak = yK[ip];
       loc = ip;
     }
@@ -277,7 +275,6 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
       
   fittedKtime = xK[loc];
   fittedK = yK[loc];
-  std::cout << "PRINTOUT AT LINE " << __LINE__ << std::endl;
   std::cout << "K time and K " << fittedKtime << " " << fittedK << std::endl;
   fittedKstartTime = 0.;
       
@@ -347,7 +344,7 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
   // }
       
   TF1 *funcA = new TF1("funcA",fittingFunction,0.,0.9E-3,4);
-  funcA->SetParameters(5, 90, 0.002, (tTheory[0]+tTheory[1])*1e6);
+  funcA->SetParameters(5, tauelecA, 0.002, (tTheory[0]+tTheory[1])*1e6);
   // funcA->FixParameter(0, 5);
   // funcA->FixParameter(1, 43);
   // funcA->FixParameter(2, 0.002);
