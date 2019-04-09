@@ -227,15 +227,28 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
   double *yK  = gK->GetY();
       
   Double_t tauelecK, tauelecA, gainAoverK;
-  
-  if (whichPrM==0) {
+
+  switch(whichPrM){
+  case 0:
     tauelecK   = PrM1preamp[0];
     tauelecA   = PrM1preamp[1];
     gainAoverK = PrM1preamp[2];
-  }else{
+    break;
+  case 1:
     tauelecK   = PrM2preamp[0];
     tauelecA   = PrM2preamp[1];
     gainAoverK = PrM2preamp[2];
+    break;
+  case 2:
+    tauelecK   = PrM1preamp[1];
+    tauelecA   = PrM1preamp[0];
+    gainAoverK = 1./PrM1preamp[2];
+    break;
+  case 3:
+    tauelecK   = PrM2preamp[1];
+    tauelecA   = PrM2preamp[0];
+    gainAoverK = 1./PrM2preamp[2];
+    break;
   }
   
   double fittedK;

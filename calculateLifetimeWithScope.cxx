@@ -54,8 +54,8 @@ int main(int argc, char *argv[]){
   
   double fields[3], distance[3], tTheory[3];
   getFields (fieldname, fields);
-  //distances from K to GK, GK to GA, GA to A as measured on 12.06.2018 by Laura
-  if (whichPrM==0){
+
+  if (whichPrM%2==0){
     distance[0] = PrM1distance[0];
     distance[1] = PrM1distance[1];
     distance[2] = PrM1distance[2];
@@ -63,8 +63,8 @@ int main(int argc, char *argv[]){
     distance[0] = PrM2distance[0];
     distance[1] = PrM2distance[1];
     distance[2] = PrM2distance[2];
-
   }
+  
   cout << "Output file is " << outfile << endl;
   
   string chname[2] = {"ch3", "ch4"};
