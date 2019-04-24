@@ -21,11 +21,38 @@ file(GLOB_RECURSE SOURCE_FILES Raw*.cxx Useful*.cxx)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 set(DICTNAME G__${libname})
 
+
+set(LIBS ${ROOT_LIBRARIES} MathMore ) 
+
+
+if(DEFINED ENV{FFTW_UTIL_INSTALL_DIR})
+    message("FFTW_UTIL_INSTALL_DIR is found and set to $ENV{FFTW_UTIL_INSTALL_DIR}")
+    add_definitions(-DFFTW_UTIL_EXISTS)
+    set (LIBS ${LIBS} RootFftwWrapper ) 
+    set(FFTW_UTIL_LIB_DIR $ENV{FFTW_UTIL_INSTALL_DIR}/lib)
+    set(FFTW_UTIL_INC_DIR $ENV{FFTW_UTIL_INSTALL_DIR}/include)
+    set(LD_FFTW_UTIL $ENV{FFTW_UTIL_INSTALL_DIR}/lib)
+    set(INC_FFTW_UTIL $ENV{FFTW_UTIL_INSTALL_DIR}/include)
+    set(FFTW_UTIL_ETC_DIR $ENV{FFTW_UTIL_INSTALL_DIR}/etc)
+    link_directories(${FFTW_UTIL_LIB_DIR})
+    include_directories(${INC_FFTW_UTIL})
+endif()
+
+
+set(CMAKE_CXX_FLAGS_DEFAULT 
+  "-O2 -g -pipe -m64 -pthread -W -Wall -Wextra -Woverloaded-virtual" 
+  CACHE STRING "c++ Flags used during default lifetime builds" 
+  FORCE ) 
+
+mark_as_advanced ( CMAKE_CXX_FLAGS_DEFAULT CMAKE_C_FLAGS_DEFAULT
+CMAKE_EXE_LINKER_FLAGS_DEFAULT CMAKE_SHARED_LINKER_FLAGS_DEFAULT)
+
+
 ROOT_GENERATE_DICTIONARY(${DICTNAME} ${HEADER_FILES} LINKDEF LinkDef.h)
 
 #---Create a shared library with geneated dictionary
 add_library(${libname} SHARED ${SOURCE_FILES} ${DICTNAME}.cxx)
-target_link_libraries(${libname} ${ROOT_LIBRARIES})
+target_link_libraries(${libname} ${LIBS})
 
 
 if( ${ROOT_VERSION} VERSION_GREATER "5.99.99")
@@ -38,16 +65,16 @@ message("SOURCE_FILES is set to ${SOURCE_FILES}" )
 
 #---Create  a main program using the library
 add_executable(makeTGraphs makeTGraphs.cxx) 
-target_link_libraries(makeTGraphs ${ROOT_LIBRARIES} lifetime)
+target_link_libraries(makeTGraphs ${LIBS} lifetime)
 
 add_executable(findAllAverages findAllAverages.cxx) 
-target_link_libraries(findAllAverages ${ROOT_LIBRARIES} lifetime)
+target_link_libraries(findAllAverages lifetime ${LIBS})
 
 add_executable(calculateLifetimeWithScope calculateLifetimeWithScope.cxx) 
-target_link_libraries(calculateLifetimeWithScope ${ROOT_LIBRARIES} lifetime)
+target_link_libraries(calculateLifetimeWithScope ${LIBS} lifetime)
 
 add_executable(findTauElec findTauElec.cxx) 
-target_link_libraries(findTauElec ${ROOT_LIBRARIES} lifetime)
+target_link_libraries(findTauElec ${LIBS} lifetime)
 
 
 ################### DOXYGEN STUFF
