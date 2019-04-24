@@ -34,11 +34,11 @@ namespace UsefulFunctions {
   //! Average batches of nmax
   /**
    *
-   * @param  filename : input name of rootfile containing the graphs to average (graphs need to be called "graph%i")
+   * @param  graphs : graphs to average
    * @param  nmax : number of graphs to average
    * @param  g : output array of averaged graphs 
    */
-  Int_t avgSomeGraphs(std::string filename, int nmax, TGraph **g);
+  Int_t avgSomeGraphs(TGraph **graphs, int nmax, TGraph **g);
 
   //! zero baseline
   /**

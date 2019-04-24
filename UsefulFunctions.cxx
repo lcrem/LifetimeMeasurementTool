@@ -4,6 +4,7 @@
 #include "TFile.h"
 #include "TMath.h"
 #include "TF1.h"
+#include "TAxis.h"
 #include "Math/WrappedTF1.h"
 #include "Math/BrentRootFinder.h"
 #include "TCanvas.h"
@@ -113,24 +114,27 @@ TGraph *UsefulFunctions::getZeroedAverage(Int_t numGraphs, TGraph **graphs){
 }
 
 
-Int_t UsefulFunctions::avgSomeGraphs(std::string filename, int nmax, TGraph **g){
+Int_t UsefulFunctions::avgSomeGraphs(TGraph **graphs, int nmax, TGraph **g){
 
-  TFile *f = new TFile(filename.c_str(), "read");
-  TGraph *graphs[1000];
+  // TFile *f = new TFile(filename.c_str(), "read");
+  // TGraph *graphs[1000];
   int count = 0;
   int ntot = 0;
 
   double newy[10005];
   double newx[10005];
 
+  TGraph *gbatch[1000];
   for (int i=0; i<1000; i++){
     // cout << i << endl;
-    graphs[count] = (TGraph*) f->Get(Form("graph%i", i+1));
-    if(!graphs[count]) break;
+    if(!graphs[i]) break;
+
+    gbatch[count] = (TGraph*) graphs[i]->Clone();
+
     count++;
     if (count==nmax){
       
-      g[ntot] = getZeroedAverage( count, graphs );
+      g[ntot] = getZeroedAverage( count, gbatch );
       zeroBaseline(g[ntot]);
       /* g[ntot]  = smoothGraph(g[ntot],  5);  */
       
@@ -140,7 +144,7 @@ Int_t UsefulFunctions::avgSomeGraphs(std::string filename, int nmax, TGraph **g)
     }
   }
 
-  f->Close();
+  // f->Close();
 
   // cout << ntot << endl;
   return ntot;
@@ -322,7 +326,7 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
   loc = TMath::LocMax(nA,yA);
   peak = -99999.;
   for (int ip=nA-2; ip>0; ip--){
-    if (xA[ip]<0.05E-3) break;
+    if (xA[ip]<tTheory[0]) break;
     if (yA[ip]>peak){
       peak = yA[ip];
       loc = ip;
@@ -332,64 +336,70 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
       
   fittedAtime = xA[loc];
   fittedA = yA[loc];
-      
-  // double R, C;
-  // if (divname.find("ampSwitch") != std::string::npos){
-  //   cout << "AMP SWITCHED !!!!" << endl;
-  //   R = 800.;
-  //   C = 0.102;
-  // }else{
-  //   R = 500.	;
-  //   C = 0.104;
-  // }
-      
-  TF1 *funcA = new TF1("funcA",fittingFunction,0.,0.9E-3,4);
-  funcA->SetParameters(5, tauelecA, 0.002, (tTheory[0]+tTheory[1])*1e6);
-  // funcA->FixParameter(0, 5);
-  // funcA->FixParameter(1, 43);
-  // funcA->FixParameter(2, 0.002);
-  // funcA->FixParameter(3, (tTheory[0]+tTheory[1])*1e6);
-  // funcA->SetParLimits(0, 1, 50);
-  funcA->SetParLimits(1, tauelecA*1E6*0.95, tauelecA*1E6*1.05);
-  // funcA->SetParLimits(2, 0, 0.1);
-  // funcA->SetParLimits(3, 10, 500);
-  funcA->SetParName(0, "#sigma");
-  funcA->SetParName(1, "#tau_{D}");
-  funcA->SetParName(2, "a");
-  funcA->SetParName(3, "t_0");
-  gA->Fit("funcA", "R", "", tTheory[0]+tTheory[1]-0.1E-3, xA[nA-1]);
-      
-      
-      
-  // TF1 *funcA = new TF1("funcA",signalFunction,tTheory[0]+tTheory[1]-0.1E-3, xK[nK-1],6);
-  // funcA->SetParName(0, "Q [pC]");
-  // funcA->SetParName(1, "R [MOhm]");
-  // funcA->SetParName(2, "C [pF]");
-  // funcA->SetParName(3, "taulife [us]");
-  // funcA->SetParName(4, "tdrift [us]");
-  // funcA->SetParName(5, "t0 [us]");
-  // funcA->SetParameters(5, R, C, 1000, icarusTime*1E6, (tTheory[0]+tTheory[1])*1E6);
-  // // funcA->FixParameter(0, 5);
-  // // funcA->FixParameter(1, R);
-  // // funcA->FixParameter(2, C);
-  // //	  funcA->FixParameter(3, 1000);
-  // // funcA->FixParameter(4, icarusTime*1E6);
-  // // funcA->FixParameter(5,  (tTheory[0]+tTheory[1])*1E6);
-  // gdiff2->Fit("funcA", "R", "", tTheory[0]+tTheory[1]-0.1E-3, xK[nK-1]);
-      
-      
-  for (int ip=0; ip<nA; ip++){
+
+  for (int ip=loc; ip>0; ip--){
     tempx = xA[ip];
-    tempy = funcA->Eval(xA[ip]);
-    if (tempy>0.01*fittedA){
+    tempy = yA[ip];
+    if (xA[ip]<tTheory[0]) break;
+    if (tempy<0.01*fittedA){
       // cout << ip << " " << tempx << " " << tempy << " " << endl;
       fittedAstartTime = tempx;
       break;
     }
   }
-  fittedA     = funcA->GetMaximum();
-  fittedAtime = funcA->GetMaximumX();
+
+
+  bool fitAnode = false;
+
+  if (fitAnode){
       
+    TF1 *funcA = new TF1("funcA",fittingFunction,0.,0.9E-3,4);
+    funcA->SetParameters(5, tauelecA, 0.002, (tTheory[0]+tTheory[1])*1e6);
+    // funcA->FixParameter(0, 5);
+    // funcA->FixParameter(1, 43);
+    // funcA->FixParameter(2, 0.002);
+    // funcA->FixParameter(3, (tTheory[0]+tTheory[1])*1e6);
+    // funcA->SetParLimits(0, 1, 50);
+    funcA->SetParLimits(1, tauelecA*1E6*0.95, tauelecA*1E6*1.05);
+    // funcA->SetParLimits(2, 0, 0.1);
+    // funcA->SetParLimits(3, 10, 500);
+    funcA->SetParName(0, "#sigma");
+    funcA->SetParName(1, "#tau_{D}");
+    funcA->SetParName(2, "a");
+    funcA->SetParName(3, "t_0");
+    gA->Fit("funcA", "R", "", tTheory[0]+tTheory[1]-0.1E-3, xA[nA-1]);
+    
+    
+    
+    // TF1 *funcA = new TF1("funcA",signalFunction,tTheory[0]+tTheory[1]-0.1E-3, xK[nK-1],6);
+    // funcA->SetParName(0, "Q [pC]");
+    // funcA->SetParName(1, "R [MOhm]");
+    // funcA->SetParName(2, "C [pF]");
+    // funcA->SetParName(3, "taulife [us]");
+    // funcA->SetParName(4, "tdrift [us]");
+    // funcA->SetParName(5, "t0 [us]");
+    // funcA->SetParameters(5, R, C, 1000, icarusTime*1E6, (tTheory[0]+tTheory[1])*1E6);
+    // // funcA->FixParameter(0, 5);
+    // // funcA->FixParameter(1, R);
+    // // funcA->FixParameter(2, C);
+    // //	  funcA->FixParameter(3, 1000);
+    // // funcA->FixParameter(4, icarusTime*1E6);
+    // // funcA->FixParameter(5,  (tTheory[0]+tTheory[1])*1E6);
+    // gdiff2->Fit("funcA", "R", "", tTheory[0]+tTheory[1]-0.1E-3, xK[nK-1]);
+    
+    
+    for (int ip=0; ip<nA; ip++){
+      tempx = xA[ip];
+      tempy = funcA->Eval(xA[ip]);
+      if (tempy>0.01*fittedA){
+	// cout << ip << " " << tempx << " " << tempy << " " << endl;
+	fittedAstartTime = tempx;
+	break;
+      }
+    }
+    fittedA     = funcA->GetMaximum();
+    fittedAtime = funcA->GetMaximumX();
+  }
       
           
       
@@ -451,7 +461,7 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
   
   
   
-  QK *= gainAoverK;
+  //  QK *= gainAoverK;
   
   double taulife = 0.001;
   double Kcorrection = 0.;

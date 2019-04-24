@@ -36,7 +36,7 @@ TGraph *smoothGraph(TGraph *g, int nnn);
 
 int main(int argc, char *argv[]){
 
-  
+  int nnum = 1;
   string basename, fieldname;
   int whichPrM=0;
 
@@ -106,7 +106,7 @@ int main(int argc, char *argv[]){
 
   bool saveCanvas;
   
-  for (int inum=0; inum<4; inum++){
+  for (int inum=0; inum<nnum; inum++){
 
     if(inum==0) saveCanvas=true;
     else saveCanvas=false;
@@ -162,7 +162,7 @@ int main(int argc, char *argv[]){
   pFile = fopen (outtxtfile.c_str(),"w");
   
   
-  for (int inum=1; inum<4; inum++){
+  for (int inum=1; inum<nnum; inum++){
 
     double avgLifetime = hpurity[inum]->GetMean();
     double errLifetime = hpurity[inum]->GetMeanError();

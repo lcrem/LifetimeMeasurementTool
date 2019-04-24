@@ -147,12 +147,12 @@ int main(int argc, char *argv[]){
     TF1 *func = new TF1("func",UsefulFunctions::greenFunction,xmin, xmax,4);
         
     //par[0] = Q*G, par[1]=tau_el
-    func->SetParameters(1., 45, 0.6, 0.6);
+    func->SetParameters(1., 100, 0.6, 0.6);
     func->SetParName(0, "Gain x Q ");
     //func->SetParLimits(0, 2, 3);
         
     func->SetParName(1, "Tau (#mus)");
-    func->SetParLimits(1, 40, 120);
+    func->SetParLimits(1, 90, 300);
 
     func->SetParName(2, "Rise (#mus)");
     func->SetParName(3, "Shift (#mus)");
