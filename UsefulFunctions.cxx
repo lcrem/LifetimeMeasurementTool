@@ -3,6 +3,7 @@
 
 #include "TFile.h"
 #include "TMath.h"
+#include "TAxis.h"
 #include "TF1.h"
 #include "Math/WrappedTF1.h"
 #include "Math/BrentRootFinder.h"
