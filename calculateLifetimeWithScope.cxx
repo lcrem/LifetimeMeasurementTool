@@ -156,8 +156,8 @@ int main(int argc, char *argv[]){
       if (ok==1){
 	hpurity[inum]->Fill(lifetime[1]);
 	hratio[inum]->Fill(lifetime[2]);
-	hpurityPlus[inum]->Fill(lifetime[1]*TMath::Log(lifetime[2])/TMath::Log(lifetime[2]*gainErrorPlus));
-	hpurityMinus[inum]->Fill(lifetime[1]*TMath::Log(lifetime[2])/TMath::Log(lifetime[2]*gainErrorMinus));
+	if (lifetime[2]*gainErrorPlus<1)  hpurityPlus[inum]->Fill(lifetime[1]*TMath::Log(lifetime[2])/TMath::Log(lifetime[2]*gainErrorPlus));
+	if (lifetime[2]*gainErrorMinus<1) hpurityMinus[inum]->Fill(lifetime[1]*TMath::Log(lifetime[2])/TMath::Log(lifetime[2]*gainErrorMinus));
       }
   
     }
@@ -194,6 +194,30 @@ int main(int argc, char *argv[]){
     rmsLifetime = hpurity[inum]->GetRMS();
     rmserrLifetime = hpurity[inum]->GetRMSError();
   
+    double tmpmean = 0.;
+    double tmperr  = 0.;
+    double tmpcont = 0.;
+    int count = 0;
+
+    for (int ibin=1; ibin<=hpurity[inum]->GetXaxis()->GetNbins(); ibin++){
+      tmpcont = hpurity[inum]->GetBinContent(ibin)*hpurity[inum]->GetXaxis()->GetBinCenter(ibin);
+      if ( tmpcont > (avgLifetime + 2*rmsLifetime))  continue;
+      if ( tmpcont == 0 ) continue;    
+      tmpmean += tmpcont;
+      count ++;
+    }
+    tmpmean /= (count*1.);
+    for (int i=1; i<=hpurity[inum]->GetXaxis()->GetNbins(); i++){
+      tmpcont = hpurity[inum]->GetBinContent(i)*hpurity[inum]->GetXaxis()->GetBinCenter(i);
+      if (tmpcont > (avgLifetime + 2*rmsLifetime)) continue;
+      if ( tmpcont == 0 ) continue;    
+      tmperr += (tmpcont - tmpmean)*(tmpcont - tmpmean);
+    }
+    
+    avgLifetime = tmpmean;
+    statErr     = TMath::Sqrt(tmperr)/(count*1.);
+
+
     avgLifetimePlus  = hpurityPlus[inum]->GetMean();
     statErrPlus  = hpurityPlus[inum]->GetMeanError();
     avgLifetimeMinus = hpurityMinus[inum]->GetMean();
