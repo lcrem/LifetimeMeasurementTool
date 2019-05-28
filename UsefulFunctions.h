@@ -82,7 +82,7 @@ namespace UsefulFunctions {
    * @param lifetime : calculated lifetime [0] approximation, [1] full formula
    * @param saveCanvas : boolean variable, save canvas or not
    */
-  Int_t calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, double tTheory[3], double lifetime[2], bool saveCanvas);
+  Int_t calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, double tTheory[3], double lifetime[3], bool saveCanvas);
 
   //! Translate graph
   /**

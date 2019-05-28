@@ -22,4 +22,7 @@ Double_t PrM1preamp[3] = {270.*1e-6, 270.*1e-6, 1.1};
 // pre-amplifiers tau electronics for PrM2 {K, A} and relative gain A/K , Preamp D on K, Preamp C on A
 Double_t PrM2preamp[3] = {270.*1e-6, 270.*1e-6, 1.1};
 
+double gainErrorPlus = 1.05;
+double gainErrorMinus = 0.95;
+
 #endif //LIFETIMECONVENTIONS_H

@@ -1,27 +1,65 @@
 double getMinimum(TGraph *g1);
 double getMaximum(TGraph *g1);
 
+void findPreampGain_each(bool isCathode, string filter, string PrM);
+
 void findPreampGain(){
 
-  bool isCathode=false;
+  findPreampGain_each(true,  "wFilters",  "1");
+  findPreampGain_each(false, "wFilters",  "1");
+  findPreampGain_each(true,  "noFilters", "1");
+  findPreampGain_each(false, "noFilters", "1");
+  findPreampGain_each(true,  "wFilters",  "2");
+  findPreampGain_each(false, "wFilters",  "2");
+  findPreampGain_each(true,  "noFilters", "2");
+  findPreampGain_each(false, "noFilters", "2");
+
+}
+
+
+void findPreampGain_each(bool isCathode, string filter, string PrM){
 
   string ch;
   string chNice;
+  string preamp1;
+  string preamp2;
+  string postname1, postname2;
+
   if (isCathode){
     ch+="ch4";
     chNice+="Cathode";
+    if (PrM=="1"){
+      preamp1 += "A";
+      preamp2 += "B";
+      postname1 += "aCathode_bAnode";
+      postname2 += "bCathode_aAnode";
+    } else if (PrM=="2"){
+      preamp1 += "C";
+      preamp2 += "D";
+      postname1 += "cCathode_dAnode";
+      postname2 += "dCathode_cAnode";
+    }
   } else {
     ch+="ch3";
     chNice+="Anode";
+    if (PrM=="1"){
+      preamp1 += "B";
+      preamp2 += "A";
+      postname1 += "aCathode_bAnode";
+      postname2 += "bCathode_aAnode";
+    } else if (PrM=="2"){
+      preamp1 += "D";
+      preamp2 += "C";
+      postname1 += "cCathode_dAnode";
+      postname2 += "dCathode_cAnode";
+    }
   }
 
-  string name1 = "/unix/dune/purity/CERN/2019/Liquid/PrM1/Day4/AllFibres_wFilters_aCathode_bAnode_newResistors/Field_25.50.100Vcm."+ch+".traces_averages.root";
-  string name2 = "/unix/dune/purity/CERN/2019/Liquid/PrM1/Day4/AllFibres_wFilters_bCathode_aAnode_newResistors/Field_25.50.100Vcm."+ch+".traces_averages.root";
 
-  string preamp1 = "B";
-  string preamp2 = "A";
+  string name1 = "/unix/dune/purity/CERN/2019/Liquid/PrM"+PrM+"/Day4/AllFibres_"+filter+"_"+postname1+"_newResistors/Field_25.50.100Vcm."+ch+".traces_averages.root";
+  string name2 = "/unix/dune/purity/CERN/2019/Liquid/PrM"+PrM+"/Day4/AllFibres_"+filter+"_"+postname2+"_newResistors/Field_25.50.100Vcm."+ch+".traces_averages.root";
 
-  string whichprm = "1wFilters";
+  string whichprm = PrM+filter;
 
   TFile *f1 = new TFile(name1.c_str(), "read");
   TFile *f2 = new TFile(name2.c_str(), "read");
@@ -74,11 +112,11 @@ void findPreampGain(){
   }
  
   for (int i=0; i<ngraphs; i++){
-    krms1 += (somek1[i]-kmean1)*(somek1[i]-kmean1)/ngraphs;
-    krms2 += (somek2[i]-kmean2)*(somek2[i]-kmean2)/ngraphs;
+    krms1 += (somek1[i]-kmean1)*(somek1[i]-kmean1);
+    krms2 += (somek2[i]-kmean2)*(somek2[i]-kmean2);
   }
-  krms1 = TMath::Sqrt(krms1);
-  krms2 = TMath::Sqrt(krms2);
+  krms1 = TMath::Sqrt(krms1)/ngraphs;
+  krms2 = TMath::Sqrt(krms2)/ngraphs;
   cout << k1 << " " << k2 << " " << k1/k2 << endl;
 
 

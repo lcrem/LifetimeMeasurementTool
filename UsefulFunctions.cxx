@@ -203,10 +203,10 @@ Double_t UsefulFunctions::getCorrectionFactor(double fittedDriftTime, double tau
   double laura = (1.-exp(-(fittedDriftTime)*(1./tauelec + 1./taulife)))/(fittedDriftTime*(1./tauelec + 1./taulife));
   double alan  = (exp(-fittedDriftTime/tauelec)-exp(-fittedDriftTime/taulife))/(fittedDriftTime*(1/taulife - 1/tauelec));
   
-  std::cout << "Fitted drift time " << fittedDriftTime << std::endl;
-  std::cout << "Tauelec " << tauelec << std::endl;
-  std::cout << "Taulife " << taulife << std::endl;
-  std::cout << "Correction laura " << laura << "; alan " << alan << std::endl;
+  // std::cout << "Fitted drift time " << fittedDriftTime << std::endl;
+  // std::cout << "Tauelec " << tauelec << std::endl;
+  // std::cout << "Taulife " << taulife << std::endl;
+  // std::cout << "Correction laura " << laura << "; alan " << alan << std::endl;
   return laura;
   
 }
@@ -226,7 +226,7 @@ Double_t UsefulFunctions::fittingFunction(Double_t *x, Double_t *par){
 
 
 
-Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, double tTheory[3], double lifetime[2], bool saveCanvas){
+Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, double tTheory[3], double lifetime[3], bool saveCanvas){
       
   int nK      = gK->GetN();
   double *xK  = gK->GetX();
@@ -271,7 +271,7 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
   std::cout << " Cathode field " << tTheory[0] << std::endl;
   
   for (int ip=nK-2; ip>0; ip--){
-    if (xK[ip]<0) break;
+    if (xK[ip]<tTheory[0]/5.) break;
     if (yK[ip]<peak && (xK[ip]>(tTheory[0]-100.E-6)) && (xK[ip]<(tTheory[0]+100.E-6)) ){
       peak = yK[ip];
       loc = ip;
@@ -462,7 +462,7 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
   
   
   
-  //  QK *= gainAoverK;
+  QK *= gainAoverK;
   
   double taulife = 0.001;
   double Kcorrection = 0.;
@@ -485,7 +485,7 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
       
       R =  TMath::Abs(newQA/newQK);
       
-      lifetime[0] = (1/TMath::Abs(TMath::Log(R)))*(t2 + 0.5*(t1+t3));
+      lifetime[0] = -(1/TMath::Log(R))*(t2 + 0.5*(t1+t3));
       
       std::cout <<" This is my lifetime " <<  lifetime[0] << std::endl;
       
@@ -507,11 +507,15 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
     brf.SetFunction( wf1, -0.1, 0.1 );
     brf.Solve();
 	
-    lifetime[1] =  TMath::Abs(brf.Root() ) ;
-	
+    lifetime[1] =  brf.Root()  ;
+
+    lifetime[2] =  R;
+
+    if (lifetime[0]<0 || lifetime[1]<0) return -1;
 
   } else {
     lifetime[0] = lifetime[1] = 0;
+    return -1;
   }
 
   
