@@ -13,6 +13,7 @@
 #include "TSystem.h"
 
 #include <iostream>
+#include <fstream>
 #include <sstream>
 #include <sys/types.h>
 #include <dirent.h>
@@ -35,7 +36,7 @@ TGraph *smoothGraph(TGraph *g, int nnn);
 
 int main(int argc, char *argv[]){
 
-  int nnum = 3;
+  int nnum = 1;
   string basename, fieldname;
   int whichPrM=0;
 
@@ -64,7 +65,6 @@ int main(int argc, char *argv[]){
     distance[2] = PrM2distance[2];
   }
   
-
   cout << "Output file is " << outfile << endl;
   
   string chname[2] = {"ch3", "ch4"};
@@ -103,9 +103,6 @@ int main(int argc, char *argv[]){
   TFile *out = new TFile(outfile.c_str(), "recreate");
   
   TH1D *hpurity[5];
-  TH1D *hratio[5];
-  TH1D *hpurityPlus[5];
-  TH1D *hpurityMinus[5];
 
   bool saveCanvas;
   
@@ -114,10 +111,7 @@ int main(int argc, char *argv[]){
     if(inum==0) saveCanvas=true;
     else saveCanvas=false;
 
-    hpurity[inum]      = new TH1D (Form("hpurity_%d", inum), "", 1000, 0, 0.1);
-    hratio[inum]       = new TH1D (Form("hratio_%d", inum), "", 1000, -2, 2);
-    hpurityPlus[inum]  = new TH1D (Form("hpurityPlus_%d", inum), "", 1000, 0, 0.1);
-    hpurityMinus[inum] = new TH1D (Form("hpurityMinus_%d", inum), "", 1000, 0, 0.1);
+    hpurity[inum]= new TH1D (Form("hpurity_%d", inum), "", 1000, 0, 0.005);
     double finalNumbers[2][3]; // [0 anode, 1 cathode] [0 amplitude, 1 start time, 2 peak time]
 
     for (int igraph=0; igraph<howManyGraphs[inum]; igraph++){
@@ -149,16 +143,12 @@ int main(int argc, char *argv[]){
 
       }
 
-      double lifetime[3]; // 0: approx formula for lifetime, 1: full formula for lifetime, 2: ratio of used for lifetime calculation
+      double lifetime[10];
       
       int ok = UsefulFunctions::calculateLifetime(gdiff[1], gdiff[0],  whichPrM, tTheory, lifetime, saveCanvas);
       
-      if (ok==1){
-	hpurity[inum]->Fill(lifetime[1]);
-	hratio[inum]->Fill(lifetime[2]);
-	if (lifetime[2]*gainErrorPlus<1)  hpurityPlus[inum]->Fill(lifetime[1]*TMath::Log(lifetime[2])/TMath::Log(lifetime[2]*gainErrorPlus));
-	if (lifetime[2]*gainErrorMinus<1) hpurityMinus[inum]->Fill(lifetime[1]*TMath::Log(lifetime[2])/TMath::Log(lifetime[2]*gainErrorMinus));
-      }
+      if (ok==1) hpurity[inum]->Fill(lifetime[0]);
+
   
     }
     
@@ -167,79 +157,20 @@ int main(int argc, char *argv[]){
   FILE * pFile;
   
   cout << "Writing these info to " << outtxtfile << endl;
-
-
-  double avgLifetime, avgRatio;
-  double statErr, statErrRatio;
-  double rmsLifetime, rmserrLifetime;
   
-  double avgLifetimePlus;
-  double statErrPlus;
-  double avgLifetimeMinus;
-  double statErrMinus;
-  
-  double absErrPlus;
-  double absErrMinus;
-  
-  double totSyst, totError;
-  double totSystRatio, totRatioError;
   
   pFile = fopen (outtxtfile.c_str(),"w");
   
   
-  for (int inum=0; inum<nnum; inum++){
+  for (int inum=1; inum<nnum; inum++){
 
-    avgLifetime = hpurity[inum]->GetMean();
-    statErr = hpurity[inum]->GetMeanError();
-    rmsLifetime = hpurity[inum]->GetRMS();
-    rmserrLifetime = hpurity[inum]->GetRMSError();
+    double avgLifetime = hpurity[inum]->GetMean();
+    double errLifetime = hpurity[inum]->GetMeanError();
+    double rmsLifetime = hpurity[inum]->GetRMS();
+    double rmserrLifetime = hpurity[inum]->GetRMSError();
   
-    double tmpmean = 0.;
-    double tmperr  = 0.;
-    double tmpcont = 0.;
-    int count = 0;
 
-    for (int ibin=1; ibin<=hpurity[inum]->GetXaxis()->GetNbins(); ibin++){
-      tmpcont = hpurity[inum]->GetBinContent(ibin)*hpurity[inum]->GetXaxis()->GetBinCenter(ibin);
-      if ( tmpcont > (avgLifetime + 2*rmsLifetime))  continue;
-      if ( tmpcont == 0 ) continue;    
-      tmpmean += tmpcont;
-      count ++;
-    }
-    tmpmean /= (count*1.);
-    for (int i=1; i<=hpurity[inum]->GetXaxis()->GetNbins(); i++){
-      tmpcont = hpurity[inum]->GetBinContent(i)*hpurity[inum]->GetXaxis()->GetBinCenter(i);
-      if (tmpcont > (avgLifetime + 2*rmsLifetime)) continue;
-      if ( tmpcont == 0 ) continue;    
-      tmperr += (tmpcont - tmpmean)*(tmpcont - tmpmean);
-    }
-    
-    avgLifetime = tmpmean;
-    statErr     = TMath::Sqrt(tmperr)/(count*1.);
-
-
-    avgLifetimePlus  = hpurityPlus[inum]->GetMean();
-    statErrPlus  = hpurityPlus[inum]->GetMeanError();
-    avgLifetimeMinus = hpurityMinus[inum]->GetMean();
-    statErrMinus = hpurityMinus[inum]->GetMeanError();
-
-    absErrPlus  = TMath::Abs(avgLifetimePlus - avgLifetime);
-    absErrMinus = TMath::Abs(avgLifetimeMinus - avgLifetime);
-
-    totSyst  = absErrPlus ? absErrMinus : absErrPlus > absErrMinus;
-
-    avgRatio     = hratio[inum]->GetMean();
-    statErrRatio = hratio[inum]->GetMeanError();
-    totSystRatio = avgRatio*(gainErrorPlus-gainErrorMinus)*0.5;
-    
-    if (inum==0){
-      totError      = totSyst;
-      totRatioError = totSystRatio;
-    } else {
-      totError      = TMath::Sqrt(totSyst*totSyst + statErr*statErr);
-      totRatioError = TMath::Sqrt(totSystRatio*totSystRatio + statErrRatio*statErrRatio);
-    }
-    cout << "THIS IS OUR PURITY, STAT and SYST ERRORS: " << avgLifetime << " " << statErr << " " << totSyst << endl;
+    cout << "THIS IS OUR PURITY AND ERROR: " << avgLifetime << " " << errLifetime << endl;
 
 
     // TF1 *fgaus = new TF1("fgaus", "gaus");
@@ -249,9 +180,7 @@ int main(int argc, char *argv[]){
 
     
     fprintf(pFile, "%s \n", howManyAvg[inum].c_str());
-    fprintf(pFile, "%8.3e %8.3e %8.3e %8.3e \n", avgLifetime , totError,      statErr,      totSyst      );
-    fprintf(pFile, "%8.3f %8.3f %8.3f %8.3f \n", avgRatio    , totRatioError, statErrRatio, totSystRatio );
-
+    fprintf(pFile, "%8.3e %8.3e %8.3e %8.3e \n", avgLifetime , errLifetime, rmsLifetime, rmserrLifetime);
     // fprintf(pFile, "tK     : %12.4e \n",  tK  );
     // fprintf(pFile, "tGK    : %12.4e \n",  tGK );
     // fprintf(pFile, "tGA    : %12.4e \n",  tGA );
@@ -269,7 +198,6 @@ int main(int argc, char *argv[]){
   
     out->cd();
     hpurity[inum]->Write(Form("hpurity_%d", inum));
-    hratio[inum]->Write(Form("hratio_%d", inum));
   }
 
   

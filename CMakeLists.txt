@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 2.8.10 FATAL_ERROR)
 project(lifetime)
 set(libname "lifetime")
 
+SET(CMAKE_C_COMPILER /usr/bin/gcc)
+SET(CMAKE_CXX_COMPILER /usr/bin/g++)
+
 # You need to tell CMake where to find the ROOT installation. This can be done in a number of ways:
 #   - ROOT built with classic configure/make use the provided $ROOTSYS/etc/cmake/FindROOT.cmake
 #   - ROOT built with CMake. Add in CMAKE_PREFIX_PATH the installation prefix for ROOT
@@ -24,7 +27,6 @@ set(DICTNAME G__${libname})
 
 set(LIBS ${ROOT_LIBRARIES} MathMore ) 
 
-
 if(DEFINED ENV{FFTW_UTIL_INSTALL_DIR})
     message("FFTW_UTIL_INSTALL_DIR is found and set to $ENV{FFTW_UTIL_INSTALL_DIR}")
     add_definitions(-DFFTW_UTIL_EXISTS)
@@ -44,9 +46,9 @@ set(CMAKE_CXX_FLAGS_DEFAULT
   CACHE STRING "c++ Flags used during default lifetime builds" 
   FORCE ) 
 
+
 mark_as_advanced ( CMAKE_CXX_FLAGS_DEFAULT CMAKE_C_FLAGS_DEFAULT
 CMAKE_EXE_LINKER_FLAGS_DEFAULT CMAKE_SHARED_LINKER_FLAGS_DEFAULT)
-
 
 ROOT_GENERATE_DICTIONARY(${DICTNAME} ${HEADER_FILES} LINKDEF LinkDef.h)
 

@@ -26,22 +26,24 @@ int main(int argc, char *argv[]){
 
   bool recreate;
   string filename="";
-  
-  if((argc!=2)&&(argc!=3)){
-    std::cerr << "Usage 1: " << argv[0] << " [filename] (recreate)" << std::endl;
+  int channel;
+
+  if((argc!=3)&&(argc!=4)){
+    std::cerr << "Usage 1: " << argv[0] << " [filename] [channel] (recreate)" << std::endl;
     return 1;
   } else {
     filename += argv[1];
-    if (argc==2){
+    channel = atoi(argv[2]);
+    if (argc==3){
       recreate=false;
     } else{
-      recreate = atoi(argv[2]);
+      recreate = atoi(argv[3]);
     }
     if (recreate==true) cout << "Recreating averages ... " << endl;
   }
 
   string finput = filename + ".root";
-  string foutput = filename + "_averages.root";
+  string foutput = filename + "_averages" + Form("ch%d", channel) + ".root";
 
   TGraph *gavg20[100];
   TGraph *gavg50[20];
@@ -53,27 +55,30 @@ int main(int argc, char *argv[]){
    
   if (fintemp->IsZombie() || recreate){
      
-    int ngraphs = fillGraphs(finput);
+    int ngraphs = 100;//fillGraphs(finput);
 
-    TGraph *justAvg      = UsefulFunctions::justAverage( ngraphs, graphs);
+    TFile *filein = new TFile(finput.c_str(), "read");
+
+    TGraph *justAvg      = UsefulFunctions::justAverageFromFile(filein, ngraphs, channel);
     std::cout << " Done just average " << std::endl;
 
+    justAvg->SetTitle(";Time [ns];Amplitude [mV]");
     TFile *fout = new TFile(foutput.c_str(), "recreate");
     justAvg       ->Write("justAvg");
 
-#ifdef FFTW_UTIL_EXISTS
-    double deltat = justAvg->GetX()[1]-justAvg->GetX()[0];
-    // Interpolate to 8 times the sampling size
-    // Correlate and average
-    TGraph *upCorAvg    = FFTtools::interpolateCorrelateAndAverage(deltat,  ngraphs, graphs);
-    // Downsample again to initial sampling size
-    TGraph *intCorAvg   = FFTtools::getInterpolatedGraph(upCorAvg, deltat);
-    std::cout << " Done interpolate, correlate and average " << std::endl;
-    intCorAvg->Write("intCorAvg");
-#endif
+// #ifdef FFTW_UTIL_EXISTS
+//     double deltat = justAvg->GetX()[1]-justAvg->GetX()[0];
+//     // Interpolate to 8 times the sampling size
+//     // Correlate and average
+//     TGraph *upCorAvg    = FFTtools::interpolateCorrelateAndAverage(deltat,  ngraphs, graphs);
+//     // Downsample again to initial sampling size
+//     TGraph *intCorAvg   = FFTtools::getInterpolatedGraph(upCorAvg, deltat);
+//     std::cout << " Done interpolate, correlate and average " << std::endl;
+//     intCorAvg->Write("intCorAvg");
+// #endif
     
 
-    TDirectory *avg20 = fout->mkdir("avg20");
+/*    TDirectory *avg20 = fout->mkdir("avg20");
     avg20->cd();
     int num20 = UsefulFunctions::avgSomeGraphs(graphs, 20, gavg20);
     for (int i=0; i<num20; i++){
@@ -110,6 +115,7 @@ int main(int argc, char *argv[]){
       gavg200[i]->Write(Form("gavg200_%d", i));
     }
     std::cout << " Done average 200 " << std::endl;
+*/
 
     fout->Write();
     delete fout;
@@ -129,15 +135,15 @@ int fillGraphs(string filename){
 
   double deltat = 0.05E-6;
   int count = 0;
-  for (int i=0; i<1000; i++){
+  for (int i=1; i<=1000; i++){
     // cout << i << endl;
-#ifdef FFTW_UTIL_EXISTS
-    TGraph *gtemp = (TGraph*) f->Get(Form("graph%i", i+1));
-    graphs[i] = FFTtools::getInterpolatedGraph(gtemp, deltat);
-    delete gtemp;
-#else
-    graphs[i] = (TGraph*) f->Get(Form("graph%i", i+1));
-#endif
+// #ifdef FFTW_UTIL_EXISTS
+//     TGraph *gtemp = (TGraph*) f->Get(Form("g_ch1_%i", i+1));
+//     graphs[i] = FFTtools::getInterpolatedGraph(gtemp, deltat);
+//     delete gtemp;
+// #else
+    graphs[i] = (TGraph*) f->Get(Form("g_ch4_%i", i+1));
+// #endif
     if(!graphs[i]) break;
     
     count++;
