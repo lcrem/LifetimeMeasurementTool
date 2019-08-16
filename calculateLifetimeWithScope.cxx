@@ -143,7 +143,7 @@ int main(int argc, char *argv[]){
 
       }
 
-      double lifetime[2];
+      double lifetime[10];
       
       int ok = UsefulFunctions::calculateLifetime(gdiff[1], gdiff[0],  whichPrM, tTheory, lifetime, saveCanvas);
       

@@ -1,33 +1,79 @@
 double getMinimum(TGraph *g1);
 double getMaximum(TGraph *g1);
 
+Double_t greenFunction(Double_t *x, Double_t *par);
+Double_t greenFunction(Double_t *x, Double_t *par){
+
+  // x[0] is in seconds, so we need to convert par[3] from musec to sec
+  double t = x[0];
+  double GQ = par[0];
+  double tau = par[1]*1e-6;
+  double rise = par[2]*1e-6;
+  double shift = par[3]*1e-6;
+
+  double heaviside;
+  if (t<0) heaviside=0;
+  else heaviside = 1;
+
+  //double y = (-GQ)*exp(-t/(tau))*heaviside;
+
+  double y;
+  double tmp1 = GQ*(-1-erf((0+shift)/rise));
+  double tmp2 = -GQ*exp(-0/tau);
+  if (t>0) y = -GQ*exp(-t/tau);
+  else y = GQ*(-1-erf((t+shift)/rise))*tmp2/tmp1;
+
+  return y;
+}
+
+
 void findPreampGain(){
 
-  bool isCathode=false;
+  bool isCathode=true;
 
   string ch;
   string chNice;
   if (isCathode){
-    ch+="ch4";
+    ch+="ch1";
     chNice+="Cathode";
   } else {
     ch+="ch3";
     chNice+="Anode";
   }
 
-  string name1 = "/unix/dune/purity/CERN/2019/Liquid/PrM1/Day4/AllFibres_wFilters_aCathode_bAnode_newResistors/Field_25.50.100Vcm."+ch+".traces_averages.root";
-  string name2 = "/unix/dune/purity/CERN/2019/Liquid/PrM1/Day4/AllFibres_wFilters_bCathode_aAnode_newResistors/Field_25.50.100Vcm."+ch+".traces_averages.root";
+  // string name1 = "/unix/dune/purity/CERN/2019/Liquid/PrM1/Day4/AllFibres_wFilters_aCathode_bAnode_newResistors/Field_25.50.100Vcm."+ch+".traces_averages.root";
+  // string name2 = "/unix/dune/purity/CERN/2019/Liquid/PrM1/Day4/AllFibres_wFilters_bCathode_aAnode_newResistors/Field_25.50.100Vcm."+ch+".traces_averages.root";
 
-  string preamp1 = "B";
-  string preamp2 = "A";
 
-  string whichprm = "1wFilters";
+  // string name1 = "/data/PurityMonitor/GasTests/Run074/RawAverages_ch1.root"; <--- Linda's
+  // string name2 = "/data/PurityMonitor/GasTests/Run075/RawAverages_ch2.root"; <--- Linda's
+
+  // string preamp1 = "B"; <--- Linda's
+  // string preamp2 = "A"; <--- Linda's
+
+  // string whichprm = "1"; <--- Linda's
+
+  //PrM1: ch1 = cathode, ch2 = anode; PrM2: ch4 = cathode, ch 5 = anode
+  string name1 = "/data/PurityMonitor/GasTests/Run119/RawAverages_ch4.root";
+  string name2 = "/data/PurityMonitor/GasTests/Run122/RawAverages_ch5.root"; 
+
+  string preamp1 = "D";
+  string preamp2 = "C";
+
+  string whichprm = "2";
 
   TFile *f1 = new TFile(name1.c_str(), "read");
   TFile *f2 = new TFile(name2.c_str(), "read");
 
   TGraph *g1 = (TGraph*)f1->Get("justAvg");
   TGraph *g2 = (TGraph*)f2->Get("justAvg");
+
+  for (int ip=0; ip<g1->GetN(); ip++){
+    g1->GetX()[ip]*=1e-9; // convert from ns to s
+    g2->GetX()[ip]*=1e-9;
+    g1->GetY()[ip]*=1e-3; // convert from mV to V
+    g2->GetY()[ip]*=1e-3;
+  }
 
   g1->SetLineColor(kRed);
   g2->SetLineColor(kBlue);
@@ -38,6 +84,19 @@ void findPreampGain(){
 
   TCanvas *c = new TCanvas("c");
   g1->SetTitle(Form("PreAmps for PrM %s, %s signal;Time [s];Amplitude [V]", whichprm.c_str(), chNice.c_str()));
+  double min1 = TMath::MinElement(g1->GetN(), g1->GetY());
+  double max1 = TMath::MaxElement(g1->GetN(), g1->GetY());
+  double min2 = TMath::MinElement(g2->GetN(), g2->GetY());
+  double max2 = TMath::MaxElement(g2->GetN(), g2->GetY());
+  
+  double min, max;
+  if (min1<min2) min = min1;
+  else min = min2;
+  if (max1>max2) max = max1;
+  else max = max2;
+  
+  g1->GetYaxis()->SetRangeUser(min*1.1, max*1.1);
+
   g1->Draw("Al");
   g2->Draw("l");
   leg->Draw();
@@ -61,7 +120,7 @@ void findPreampGain(){
 
   int ngraphs=10;
   for (int i=0; i<ngraphs; i++){
-    TGraph *g1t = (TGraph*)f1->Get(Form("avg100/gavg100_%i", i));
+    TGraph *g1t = (TGraph*)f1->Get(Form("avg100/gavg100_%i", i)); 
     if (isCathode) somek1[i] = getMinimum(g1t);
     else somek1[i] = getMaximum(g1t);
     delete g1t;
@@ -100,7 +159,21 @@ void findPreampGain(){
   if (isCathode) cout << "Ratio " <<  preamp1 << "/" << preamp2 << " : " << ratio << " +/- " << ratioerr << endl;
   else cout << "Ratio " <<  preamp2 << "/" << preamp1 << " : " << ratio << " +/- " << ratioerr << endl;
 
-  c->Print(Form("plots/GainCalibrationForPrM%s_from%s.png", whichprm.c_str(), chNice.c_str()));
+  c->Print(Form("plots/filtered/ProtoDUNE_gasArgon_GainCalibrationForPrM%s_from%s.png", whichprm.c_str(), chNice.c_str()));
+
+
+  TF1 *func = new TF1("func",greenFunction,0, 1e-3,4);
+  
+  //par[0] = Q*G, par[1]=tau_el                                                                                                               
+  func->SetParameters(1., 300, 0.6, 0.6);
+  func->SetParName(0, "Gain x Q ");
+  func->SetParName(1, "Tau (#mus)");
+  func->SetParLimits(1, 250, 300);
+  func->SetParName(2, "Rise (#mus)");
+  func->SetParName(3, "Shift (#mus)");
+
+  //g1->Fit("func","R");
+
 }
 
 

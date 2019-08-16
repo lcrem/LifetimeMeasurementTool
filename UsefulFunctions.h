@@ -10,6 +10,8 @@
 #include <string>
 #include <sstream>
 #include "TGraph.h"
+#include "TFile.h"
+
 
 namespace UsefulFunctions {
   
@@ -21,6 +23,8 @@ namespace UsefulFunctions {
    * @return pointer to TGraph
    */
   TGraph *justAverage(Int_t numGraphs, TGraph **grPtrPtr);
+
+  TGraph *justAverageFromFile(TFile *fin, Int_t numGraphs, int channel);
 
   //! Put baseline to 0 before averaging n graphs
   /**
@@ -39,6 +43,8 @@ namespace UsefulFunctions {
    * @param  g : output array of averaged graphs 
    */
   Int_t avgSomeGraphs(TGraph **graphs, int nmax, TGraph **g);
+
+  Int_t avgSomeGraphs(TFile *fin, int nmax, TGraph **g, int ch);
 
   //! zero baseline
   /**
