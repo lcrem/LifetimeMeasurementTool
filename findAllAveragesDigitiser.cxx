@@ -61,14 +61,13 @@ int main(int argc, char *argv[]){
 
 
     TFile *fout = new TFile(foutput.c_str(), "recreate");
-    /*
+
     std::cout << __FUNCTION__ << " " << __LINE__ << std::endl;
     TDirectory *avg25 = fout->mkdir("avg25");
     avg25->cd();
     std::cout << __FUNCTION__ << " " << __LINE__ << std::endl;
     int num25 = UsefulFunctions::avgSomeGraphs(filein, 25, gavg25, ch);
     std::cout << __FUNCTION__ << " " << __LINE__ << std::endl;
-    std::cout<<"num25 "<<num25<<std::endl;
     for (int i=0; i<num25; i++){
       avg25->cd();
       gavg25[i]->Write(Form("gavg25_%d", i));
@@ -104,17 +103,17 @@ int main(int argc, char *argv[]){
     }
     std::cout << " Done average 100 " << std::endl;
     
-    TDirectory *avg200 = fout->mkdir("avg200");
-    avg200->cd();
-    int num200 = UsefulFunctions::avgSomeGraphs(gavg100, 2, gavg200);
-    for (int i=0; i<num200; i++){
-      avg200->cd();      
-      gavg200[i]->Write(Form("gavg200_%d", i));
-      delete gavg100[i*2];
-      delete gavg100[i*2+1];
-    }
-    std::cout << " Done average 200 " << std::endl;
-    */
+    // TDirectory *avg200 = fout->mkdir("avg200");
+    // avg200->cd();
+    // int num200 = UsefulFunctions::avgSomeGraphs(gavg100, 2, gavg200);
+    // for (int i=0; i<num200; i++){
+    //   avg200->cd();      
+    //   gavg200[i]->Write(Form("gavg200_%d", i));
+    //   delete gavg100[i*2];
+    //   delete gavg100[i*2+1];
+    // }
+    // std::cout << " Done average 200 " << std::endl;
+
     TDirectory *avg200 = fout->mkdir("avg200");
     avg200->cd();
     int num200 = UsefulFunctions::avgSomeGraphs(filein, 200, gavg200, ch);
@@ -134,6 +133,15 @@ int main(int argc, char *argv[]){
     //std::cout << " Done just average " << std::endl;                                                                                      
     //justAvg->SetTitle(";Time [ns];Amplitude [mV]");  
     //justAvg->Write("justAvg");
+    
+
+    fout->cd();
+    
+    cout << "At line " << __LINE__ << endl;
+    TGraph *justAvg      = UsefulFunctions::justAverage(100, gavg100);                                                      
+    std::cout << " Done just average " << std::endl;                                                                                      
+    justAvg->SetTitle(";Time [ns];Amplitude [mV]");  
+    justAvg->Write("justAvg");
 
 
     fout->Write();

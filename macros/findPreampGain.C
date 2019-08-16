@@ -41,16 +41,6 @@ void findPreampGain(){
     chNice+="Anode";
   }
 
-  // string name1 = "/unix/dune/purity/CERN/2019/Liquid/PrM1/Day4/AllFibres_wFilters_aCathode_bAnode_newResistors/Field_25.50.100Vcm."+ch+".traces_averages.root";
-  // string name2 = "/unix/dune/purity/CERN/2019/Liquid/PrM1/Day4/AllFibres_wFilters_bCathode_aAnode_newResistors/Field_25.50.100Vcm."+ch+".traces_averages.root";
-
-
-  // string name1 = "/data/PurityMonitor/GasTests/Run074/RawAverages_ch1.root"; <--- Linda's
-  // string name2 = "/data/PurityMonitor/GasTests/Run075/RawAverages_ch2.root"; <--- Linda's
-
-  // string preamp1 = "B"; <--- Linda's
-  // string preamp2 = "A"; <--- Linda's
-
   // string whichprm = "1"; <--- Linda's
 
   //PrM1: ch1 = cathode, ch2 = anode; PrM2: ch4 = cathode, ch 5 = anode
@@ -159,11 +149,13 @@ void findPreampGain(){
   if (isCathode) cout << "Ratio " <<  preamp1 << "/" << preamp2 << " : " << ratio << " +/- " << ratioerr << endl;
   else cout << "Ratio " <<  preamp2 << "/" << preamp1 << " : " << ratio << " +/- " << ratioerr << endl;
 
-  c->Print(Form("plots/filtered/ProtoDUNE_gasArgon_GainCalibrationForPrM%s_from%s.png", whichprm.c_str(), chNice.c_str()));
+
+  c->Print(Form("plots/ProtoDUNE_gasArgon_GainCalibrationForPrM%s_from%s.png", whichprm.c_str(), chNice.c_str()));
 
 
   TF1 *func = new TF1("func",greenFunction,0, 1e-3,4);
-  
+
+
   //par[0] = Q*G, par[1]=tau_el                                                                                                               
   func->SetParameters(1., 300, 0.6, 0.6);
   func->SetParName(0, "Gain x Q ");
@@ -172,7 +164,6 @@ void findPreampGain(){
   func->SetParName(2, "Rise (#mus)");
   func->SetParName(3, "Shift (#mus)");
 
-  //g1->Fit("func","R");
 
 }
 

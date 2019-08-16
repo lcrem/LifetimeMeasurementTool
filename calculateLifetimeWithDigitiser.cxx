@@ -4,6 +4,7 @@
 #include "FFTtools.h"
 #include "TFile.h"
 #include "TF1.h"
+
 #include "TTree.h"
 #include "TChain.h"
 #include "TCanvas.h"
@@ -24,6 +25,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <stdio.h>
+
 
 using namespace std;
 
@@ -88,13 +90,11 @@ int main(int argc, char *argv[]){
 
   FILE *felog;
   felog = fopen(Form("%s/Elog.txt", runname.c_str()), "r");
-  
   char elog[10000];
   fgets(elog, 100000, felog);
   
   string selog = Form("%s", elog);
   fclose(felog);
-
 
   struct stat t_stat;
   stat(Form("%s", runname.c_str()), &t_stat);
@@ -170,12 +170,10 @@ int main(int argc, char *argv[]){
 
   string noiseFile   = basename + Form("/Run%03d/", runNoise) + Form("PrM%i", whichPrM) + "_filtAvg.root";
 
-
   string chname[2];
   string chnamenice[2] = {"anode", "cathode"};
 
   TCanvas *c = new TCanvas("c");
-
 
   if (whichPrM==1){
     distance[0] = PrM1distance[0];
@@ -228,7 +226,6 @@ int main(int argc, char *argv[]){
   // cout << "The time delay is " << timedelay << endl;
 
   double timeStep = 2.E-9; // 2ns
-
   cout << "T theory in us : " ;
   for (int i=0; i<3; i++){
     tTheory[i] = distance[i]/UsefulFunctions::ICARUSpolynomial(fields[i]);
@@ -307,7 +304,6 @@ int main(int argc, char *argv[]){
     // else saveCanvas=false;
 
     double finalNumbers[2][3]; // [0 anode, 1 cathode] [0 amplitude, 1 start time, 2 peak time]
-    
     for (int igraph=0; igraph<howManyGraphs[inum]; igraph++){
       
       for (int ich=0; ich<2; ich++){
@@ -380,7 +376,6 @@ int main(int argc, char *argv[]){
       t3         = tlifetime[8];
 
 
-
       if (numAveraged==1000){
 
 	lifeCathodeOnly = getLifetimeFromCathode(gfil[0], tlifetime);
@@ -432,6 +427,7 @@ int main(int argc, char *argv[]){
   outLife->Close();
 
   fclose (outFile);
+
   
   // FILE * pFile;
   
@@ -552,7 +548,6 @@ TGraph *smoothGraph(TGraph *g, int nnn){
 
 }
 
-
 double getRawVoltageRMS(string basename, int irun, string chname){
   string filename = Form("%s/Run%03i/RootifiedFromBinary.root", basename.c_str(), irun);
   struct stat st;
@@ -654,3 +649,4 @@ double getLifetimeFromCathode(TGraph *g1, double parlife[10]){
 
 
 }
+

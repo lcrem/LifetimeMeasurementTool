@@ -13,3 +13,4 @@ const Double_t PrM2distance[3] = {0.018, 0.15, 0.01};
 const Double_t PrM1preamp[3] = {316.*1e-6, 225.*1e-6, 1./0.84};
 // pre-amplifiers tau electronics for PrM2 {K, A} and relative gain A/K , Preamp D on K, Preamp C on A
 const Double_t PrM2preamp[3] = {303.*1e-6, 262.*1e-6, 1./0.90};
+

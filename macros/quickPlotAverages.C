@@ -7,7 +7,7 @@ int findFile(string folder, int ch, string &filename);
 
 int getField(string folder, string &field);
 
-void quickPlotAverages(string folder="/data/PurityMonitor/GasTests/Run017/", int whichPrM=1){
+void quickPlotAverages(string folder="/data/PurityMonitor/GasTests/Run040/", int whichPrM=1){
 
 
   if (whichPrM!=1 && whichPrM!=2) {
