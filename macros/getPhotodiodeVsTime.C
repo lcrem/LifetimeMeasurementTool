@@ -138,6 +138,7 @@ int findAllTimes(string folder, string times[100], int minutes[100]){
 	  sscanf(times[count-1].c_str(), "%d.%d", &h, &m);
 	  secs1 = h*60 + m;
 	  minutes[count] = secs0-secs1 + minutes[count-1];
+
 	  cout << times[count] << " " << minutes[count] << endl;
 	}
 	count++;
