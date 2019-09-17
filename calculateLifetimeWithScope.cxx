@@ -1,5 +1,6 @@
 #include "UsefulFunctions.h"
 #include "LifetimeConventions.h"
+#include "FFTtools.h"
 
 #include "TFile.h"
 #include "TTree.h"
@@ -11,6 +12,7 @@
 #include "TMath.h"
 #include "TStyle.h"
 #include "TSystem.h"
+#include "TF1.h"
 
 #include <iostream>
 #include <fstream>
@@ -28,9 +30,14 @@ double ymax = +0.8;
 
 void getFields (string fieldname, double fields[3]);
 
+double getLifetimeFromCathode(TGraph *g1, double parlife[10]);
+
+Double_t greenFunction(Double_t *x, Double_t *par);
+
 
 string howManyAvg[4] = {"justAvg", "avg50", "avg100", "avg200"};
 int howManyGraphs[4] = {1, 20, 10, 5};
+int howManyAvgInt[4] = {1000, 50, 100, 200};
 
 TGraph *smoothGraph(TGraph *g, int nnn);
 
@@ -105,7 +112,14 @@ int main(int argc, char *argv[]){
   TH1D *hpurity[5];
 
   bool saveCanvas;
+
+  double lifeCathodeOnly, lifeApprox, lifetime;
+  double QK, QA, QKcorr, QAcorr;
+  double t1, t2, t3;
+  int numAveraged;
   
+  TCanvas *c = new TCanvas("c");
+
   for (int inum=0; inum<nnum; inum++){
 
     if(inum==0) saveCanvas=true;
@@ -137,18 +151,61 @@ int main(int argc, char *argv[]){
 
 	UsefulFunctions::zeroBaseline(g1);
 	
-	//        g1 = smoothGraph(g1, smoothing[ich]);
-
-	gdiff[ich] = (TGraph*)g1->Clone();
+	// Filter out everything above 200kHz                                                                                     
+        gdiff[ich] = FFTtools::simplePassBandFilter(g1, 0., 100000000.);
+	
+	//	gdiff[ich] = smoothGraph(gdiff[ich], 5);
+	//	gdiff[ich] = (TGraph*)g1->Clone();
 
       }
 
-      double lifetime[10];
+      double tlifetime[10];
       
-      int ok = UsefulFunctions::calculateLifetime(gdiff[1], gdiff[0],  whichPrM, tTheory, lifetime, saveCanvas);
+      int ok = UsefulFunctions::calculateLifetime(gdiff[1], gdiff[0],  whichPrM, tTheory, tlifetime, saveCanvas);
       
-      if (ok==1) hpurity[inum]->Fill(lifetime[0]);
+      if (ok==1) hpurity[inum]->Fill(tlifetime[0]);
 
+      numAveraged=howManyAvgInt[inum];
+
+      lifeCathodeOnly = -999.;
+
+      QK         = tlifetime[2];
+      QA         = tlifetime[3];
+      t1         = tlifetime[6];
+      t2         = tlifetime[7];
+      t3         = tlifetime[8];
+      lifeApprox = tlifetime[0];
+      lifetime   = tlifetime[1];
+      QKcorr     = tlifetime[4];
+      QAcorr     = tlifetime[5];
+
+      if (numAveraged==1000){
+
+        lifeCathodeOnly = getLifetimeFromCathode(gdiff[1], tlifetime);
+
+        printf("Lifetime from Cathode [us] : %8.2f \n", lifeCathodeOnly*1e6);
+        printf("Lifetime [us]              : %8.2f \n", lifetime*1e6);
+        printf("QK [mV]                    : %8.2f \n", QK);
+        printf("QA [mV]                    : %8.2f \n", QA);
+        printf("t1 [us]                    : %8.2f \n", t1*1e6);
+        printf("t2 [us]                    : %8.2f \n", t2*1e6);
+        printf("t3 [us]                    : %8.2f \n", t3*1e6);
+
+        if (inum==0){
+          c->cd();
+          gStyle->SetOptFit(1);
+          double min = TMath::MinElement(gdiff[0]->GetN(), gdiff[0]->GetY());
+          double max = TMath::MaxElement(gdiff[1]->GetN(), gdiff[1]->GetY());
+          if (max<5) max = 5.;
+	  //          gdiff[1]->GetYaxis()->SetRangeUser(min*1.2, max*1.2);
+          gdiff[1]->SetTitle(Form("PrM%d, Filtered Averages;Time [s];Amplitude [V]", whichPrM));
+          gdiff[1]->Draw("Al");
+	  gdiff[0]->Draw("l");
+	  c->Print(Form("%s_PurityMonitor%d_cathodeOnlyFit.png", (basename+fieldname).c_str(), whichPrM));
+          c->Print(Form("%s_PurityMonitor%d_cathodeOnlyFit.root", (basename+fieldname).c_str(), whichPrM));
+        }
+
+      }
   
     }
     
@@ -261,3 +318,95 @@ TGraph *smoothGraph(TGraph *g, int nnn){
   return gnew;
 
 }
+
+
+Double_t greenFunction(Double_t *x, Double_t *par){
+
+  // x[0] is in seconds, so we need to convert par[3] from musec to sec                                                           
+                                                                                                                                 \
+
+  double zero = par[4];
+  double t = x[0]-zero;
+  double tauEl = par[0]*1e-6;
+  double T1 = par[1];
+  double min = par[2];
+  double tauLife = par[3]*1e-6;
+
+  double y;
+  double factor = 1/(1/tauLife-1/tauEl);
+  double GQ = min*T1/factor/(exp(-T1/tauLife)-exp(-T1/tauEl));
+
+  if (t>=T1) y = GQ/T1*factor*(exp(T1/tauEl)-exp(T1/tauLife))*exp(-t/tauEl-T1/tauLife);
+  if (t>0 && t<T1) y = GQ*factor/T1*(exp(t/tauEl)-exp(t/tauLife))*exp(-t/tauEl-t/tauLife);
+  if (t<=0) y = 0;
+
+  return y;
+}
+
+
+double getLifetimeFromCathode(TGraph *g1, double parlife[10]){
+
+  double_t min_at_x = parlife[6];
+
+  TF1 *func = new TF1("func",greenFunction, g1->GetX()[0], g1->GetX()[g1->GetN()-1], 5);
+
+  double tauLife = 500.;
+
+  double tauEl = 100.;
+
+  double factor = 1/(1/tauLife-1/tauEl);
+  double minimum = parlife[2];
+  double GQ = minimum/(exp(-min_at_x/tauEl)-1)*min_at_x/factor;
+  double GQmod = minimum/(exp(-min_at_x/tauEl)-exp(-min_at_x/tauLife))*min_at_x/factor;
+  // cout << "factor " << factor << endl;                                                                                         
+  // cout << "GQ " << GQ << " \t GQmod " << GQmod << endl << endl;                                                                
+
+  func->SetParameters(tauEl, min_at_x, minimum, tauLife, 0.);
+                                                                                                                                 
+  //  func->SetParLimits(0,tauEl*0.5, tauEl*1.5);
+
+  func->SetParLimits(0, 10., 350.);
+
+  func->SetParLimits(3, 0, 10000);
+
+  // //  func->FixParameter(1, min_at_x);                                                                                        \
+                                                                                                                                  
+  func->SetParLimits(1, min_at_x*0.7, min_at_x*1.3);
+  func->SetParLimits(4, -10.e-6, 50.e-6);
+  //func->FixParameter(4, 4.e-6);                                                                                                \
+                                           
+
+
+  func->SetParName(0, "TauEl (#mus)");
+  func->SetParName(1, "T1 (s)");
+  func->SetParName(2, "minimum (V)");
+  func->SetParName(3, "tauLife (#mus)");
+  func->SetParName(4, "t0 (s)");
+
+  func->SetLineColor(kMagenta);
+  func->SetLineWidth(2);
+
+  gStyle->SetOptStat();
+  gStyle->SetOptFit();
+  int status = g1->Fit("func","R");
+  func->Draw("same");
+
+  if (status!=0) return 0.;
+
+
+  double outpar[5];
+  for (int i=0; i<4; i++) outpar[i] = func->GetParameter(i);
+  double outMin = outpar[2]*(exp(-outpar[1]/(outpar[0]*1e-6))-exp(-outpar[1]/(outpar[3]*1e-6)) )/(outpar[1]*(1/(outpar[3]*1e-6)-1/(outpar[0]*1e-6)));
+
+  double funcMin = func->Eval(outpar[1]);
+
+  cout << "Minimum found by hand " << minimum << endl;
+  cout << "Value of fitted function at T1 " << funcMin << endl;
+  cout << "Minimum of fitted function " << func->GetMinimum() << endl;
+  cout << "Minimum found from the fitted GQ " << outMin << endl;
+
+  return outpar[3]*1e-6;
+
+
+}
+
