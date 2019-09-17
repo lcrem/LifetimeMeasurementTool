@@ -2,13 +2,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void makePlotsVsTime(int whichPrM=2, double whichField=50 ){
+// Filling ended roughly with run 341
+// From run 342 Cryostat is full
+
+void makePlotsVsTime(int whichPrM=2, double whichField=50, int firstRun=342,  int maxRun=-1, string addString="" ){
 
   string basename="/data/PurityMonitor/Filling/";
-  int whichAvg=1000;
-		     
+  int whichAvg=1000;		     
 
-  string outdir = Form("plots/Field%dVcm", int(whichField));
+  string outdir = Form("plots/%s/Field%dVcm", addString.c_str(), int(whichField));
 
   system(Form("mkdir -p %s", outdir.c_str()));
 
@@ -25,23 +27,25 @@ void makePlotsVsTime(int whichPrM=2, double whichField=50 ){
 
   int ndiv;
   
-  int maxRun=0;
   FILE *frun;
-  if (( frun = fopen(Form("%s/LastRun", basename.c_str()), "r")) ){
-    fscanf(frun,"%d", &maxRun);
-    printf("The last run number was %d\n", maxRun);
-    fclose(frun);
+  if (maxRun==-1){
+    if (( frun = fopen(Form("%s/LastRun", basename.c_str()), "r")) ){
+      fscanf(frun,"%d", &maxRun);
+      printf("The last run number was %d\n", maxRun);
+      fclose(frun);
+    }
   }
-  
+
   TChain *lifeTree = new TChain("lifeTree");
   TChain *metaTree = new TChain("metaTree");
   
-  for (int irun=190; irun<=maxRun;irun++){
+  for (int irun=firstRun; irun<=maxRun;irun++){
     string filename = Form("%s/Run%03i/PrM%i_lifeInfo.root", basename.c_str(), irun, whichPrM);
     struct stat st;
     
     // check if the bad flag file exists
     if (stat(Form("%s/Run%03i/BadFlag", basename.c_str(), irun), &st)==0) continue;
+    if (stat(Form("%s/Run%03i/BadFlagPrM%d", basename.c_str(), irun, whichPrM), &st)==0) continue;
 
     if (stat(filename.c_str(), &st)==0 ){
       lifeTree->Add(filename.c_str());
@@ -105,6 +109,8 @@ void makePlotsVsTime(int whichPrM=2, double whichField=50 ){
     metaTree->GetEntryWithIndex(runTree);
     
     if (fields[0] != whichField) continue;
+    if (fields[1] != whichField*2) continue;
+    if (fields[2] != whichField*4) continue;
     if (!doneTitle) {
       title+=Form("PrM %d, field %i-%i-%i V/cm", whichPrM, int(fields[0]), int(fields[1]), int(fields[2]));
       doneTitle=true;
@@ -117,7 +123,7 @@ void makePlotsVsTime(int whichPrM=2, double whichField=50 ){
       //      cout << niceVar[ivar] << " " << varDouble[ivar] << " " << yValues[ivar].at(count) << endl;
     }
 
-    cout << runMeta << " " << runTree << " " << runNoise << " " << timestamp << " " << yValues[7].at(count) << " " << yValues[4].at(count) << " " << yValues[0].at(count) << endl;
+    cout << runMeta << " " << runTree << " " << runNoise << " " << timestamp << " " << yValues[7].at(count) << " " << yValues[4].at(count) << " " << yValues[6].at(count) << endl;
 
     fprintf(outFile, "%d, %d, %d, %d, %d, ", runMeta, timestamp, int(fields[0]), int(fields[1]), int(fields[2]));
     for (int ivar=0; ivar<nvar; ivar++) fprintf(outFile, "%8.3e, ", yValues[ivar].at(count) );

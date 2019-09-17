@@ -89,9 +89,13 @@ int main(int argc, char *argv[]){
     for (int igraph=0; igraph<howManyGraphs[inum]; igraph++){
       
       string gname ;
-      if (howManyGraphs[inum]==1) gname+= "justAvg";
-      else gname += Form("%s/g%s_%d", howManyAvg[inum].c_str(), howManyAvg[inum].c_str(), igraph);
-      
+      if (howManyGraphs[inum]==1){
+	gname+= "justAvg";
+	if (!file1->GetListOfKeys()->Contains(gname.c_str())) continue;
+      } else {
+	gname += Form("%s/g%s_%d", howManyAvg[inum].c_str(), howManyAvg[inum].c_str(), igraph);	
+      }
+
       TGraph *g1 = (TGraph*)file1->Get(gname.c_str());
       //      cout << g1 << " " <<  gname << endl;
       g1->SetName("g1");        

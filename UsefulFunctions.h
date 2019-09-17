@@ -88,7 +88,7 @@ namespace UsefulFunctions {
    * @param lifetime : calculated lifetime [0] approximation, [1] full formula
    * @param saveCanvas : boolean variable, save canvas or not
    */
-  Int_t calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, double tTheory[3], double lifetime[2], bool saveCanvas);
+  Int_t calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, double tTheory[3], double lifetime[20], double lifeErrors[20], bool saveCanvas);
 
   //! Translate graph
   /**
@@ -113,6 +113,8 @@ namespace UsefulFunctions {
    * @param par : [0] Gain x Q, [1] tau in us, [2] rise in us, [3] shift in us
    */  
   Double_t greenFunction(Double_t *x, Double_t *par);
+
+  Double_t funcXenon(Double_t *x, Double_t *par);
 
 }
 
