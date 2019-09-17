@@ -9,7 +9,7 @@ source env.sh
 
 
 
-DIRECTORY=/data/PurityMonitor/Filling/
+DIRECTORY=/data/PurityMonitor/GasTests/
 
 
 for runNum in `seq -w $firstRun $lastRun`;

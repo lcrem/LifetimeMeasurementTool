@@ -2,169 +2,225 @@
 #include<dirent.h>
 #include<unistd.h>
 
-string findFilename(string folder, string time, string ch);
-int findAllFields(string folder, string fields[100]);
-void getFieldValues(string name, int &E1, int &E2, int &E3);
+Double_t ICARUSpolynomial(Double_t E);
 
-void checkGridTransparency(string infolder="/unix/dune/purity/CERN/2019/Liquid/PrM2/Day4/AllFibres_wFilters_newResistors/"){
+void checkGridTransparency(string infolder="/data/PurityMonitor/Filling/", int firstRun=600, int lastRun=608){
 
-  string outname="GridTransparency";
+  string outname="GridTransparency_betterpurity";
+    
+  double errQK = 2;
+  double errQA = 2;
 
-  string fields[100];
-  int nfields = findAllFields(infolder, fields);
+  double tauLife = 540.e-6;
 
-  int E1[100], E2[100], E3[100];
+  double distance[2][3];
 
-  double QK[100], QA[100], R[100], x[100];
+  distance[0][0] =  0.01823;
+  distance[1][0] =  0.018;
+  distance[0][1] =  0.16424;
+  distance[1][1] =  0.15;
 
-  double R40[100], x40[100];
-  int count40=0;
+  double t1, t2, t3, QKcorr, QAcorr, lifetime;
+
+  double QK[2][100], QA[2][100], R[2][100], x[2][100];
+  double t1arr[2][100], life[2][100], errlife[2][100];
+  double errR[2][100], errx[2][100], errV[2][100], errt[2][100];
+  double fields[3];
+
+  double tTheory[3][3];
+  double nomRatio[2];
+
+  int count=0;
   
+  string kch[2]={"ch1", "ch4"};
+  string ach[2]={"ch2", "ch5"};
 
-  for (int ifield=0; ifield<nfields; ifield++){
-    //    cout << fields[ifield] << endl;
-    getFieldValues(fields[ifield], E1[ifield], E2[ifield], E3[ifield]);
+  for (int iprm=0; iprm<2; iprm++){
 
-    string fnameA = infolder + "/" + findFilename(infolder, fields[ifield], "ch3");
-    string fnameK = infolder + "/" + findFilename(infolder, fields[ifield], "ch4");
+    count=0;
+    for (int irun=firstRun; irun<lastRun; irun++){
 
-    cout << fnameA << endl;
+      TFile *fin = new TFile(Form("/data/PurityMonitor/Filling/Run%03d/PrM%d_lifeInfo.root", irun, iprm+1));
+      TTree *metaTree = (TTree*)fin->Get("metaTree");
+      metaTree->SetBranchAddress("fields[3]", fields);
+      metaTree->GetEntry(0);
+      cout << fields[0] << " " << fields[1] << " " << fields[2] << endl;
+
+      x[iprm][count]  = fields[1]*1.0/fields[0] + 0.01*iprm;
+      errx[iprm][count]=0;
+      for (int ifield=0; ifield<3; ifield++) tTheory[iprm][ifield] = distance[iprm][ifield]/ICARUSpolynomial(fields[ifield]);  
+
+      TTree *lifeTree = (TTree*)fin->Get("lifeTree");
+      lifeTree->SetBranchAddress("t1", &t1);
+      lifeTree->SetBranchAddress("t2", &t2);
+      lifeTree->SetBranchAddress("t3", &t3);
+      lifeTree->SetBranchAddress("QK", &QKcorr);
+      lifeTree->SetBranchAddress("QA", &QAcorr);
+      lifeTree->SetBranchAddress("lifetime", &lifetime);
+      lifeTree->GetEntry(0);
+
+      TGraph *gK = (TGraph*)fin->Get(Form("gfin_%s", kch[iprm].c_str()));
+      QK[iprm][count] = TMath::MinElement(gK->GetN(), gK->GetY());
+      TGraph *gA = (TGraph*)fin->Get(Form("gfin_%s", ach[iprm].c_str()));
+      QA[iprm][count] = TMath::MaxElement(gA->GetN(), gA->GetY());
+
+      QK[iprm][count] = -QKcorr;
+      QA[iprm][count] = QAcorr;
+      t1arr[iprm][count] = t1*1e6;
+      errt[iprm][count]=1;
+      life[iprm][count]=lifetime*1e6;
+      errlife[iprm][count]=lifetime*1e6*0.1;
+
+      cout <<  QK[iprm][count] << " " <<  QA[iprm][count] << " "  ;
+
+      QA[iprm][count] *= TMath::Exp((t2+(t1+t3)*0.5)/tauLife);
+
+      R[iprm][count]  = -QA[iprm][count]/QK[iprm][count];
     
-    TFile *fA = new TFile(fnameA.c_str(), "read");
-    TGraph *gA = (TGraph*)fA->Get("justAvg");
+      errV[iprm][count] = errQA;
 
-    int nA     = gA->GetN();
-    double *xA = gA->GetX();
-    double *yA = gA->GetY();
-    
-    QA[ifield]=0;
-    for (int i=0; i<nA; i++){
-      if (yA[i]>QA[ifield] && xA[i]>0.02E-3){
-	QA[ifield]=yA[i];
-      }
+      cout <<  QA[iprm][count] << " " <<  R[iprm][count]  << endl;
+
+      errR[iprm][count] = R[iprm][count]*TMath::Sqrt( (errQK/QK[iprm][count])*(errQK/QK[iprm][count]) + (errQA/QA[iprm][count])*(errQA/QA[iprm][count])  );
+
+      if (fields[1]/fields[0]==2) nomRatio[iprm] =  R[iprm][count];
+      count++;
+
+      delete fin;
     }
-
-    TFile *fK = new TFile(fnameK.c_str(), "read");
-    TGraph *gK = (TGraph*)fK->Get("justAvg");
-    
-    int nK     = gK->GetN();
-    double *xK = gK->GetX();
-    double *yK = gK->GetY();
-    QK[ifield]=0;
-    for (int i=0; i<nK; i++){
-      if (yK[i]<QK[ifield] && xK[i]>0.02E-3){
-	QK[ifield]=yK[i];
-      }
-    }
-
-    //    QA[ifield] = TMath::MaxElement(gA->GetN(), gA->GetY());
-    //    QK[ifield] = TMath::MinElement(gK->GetN(), gK->GetY());
-    R[ifield]  = -QA[ifield]/QK[ifield];
-    x[ifield]  = E2[ifield]*1.0/E1[ifield];
-
-    cout << E2[ifield] <<  " " << E1[ifield] << " " << x[ifield] << " " << R[ifield] << endl;
-
-    if (E1[ifield]==40){
-      R40[count40]=R[ifield];
-      x40[count40]=x[ifield];
-      count40++;
-    }
-
-    delete fA;
-    delete fK;
-
-
 
   }
 
+  
+
+  // renormalise to case of 2
+  for (int i=0; i<count; i++){
+    cout << x[1][i] << " " << R[1][i] << " " ;
+    R[0][i]/=nomRatio[0];
+    R[1][i]/=nomRatio[1];
+
+    errR[0][i]/=nomRatio[0];
+    errR[1][i]/=nomRatio[1];
+
+    cout << R[1][i] << endl;
+  }
+
   TCanvas *c = new TCanvas("c");
-  //  TGraph *g = new TGraph (nfields, x, R);
-  TGraph *g = new TGraph (count40, x40, R40);
-  g->GetYaxis()->SetRangeUser(0, 1.5);
-  g->SetMarkerStyle(20);
-  g->SetTitle("Grid transparency check;E2/E1;-QA/QK");
-  g->Draw("Ap");
+  c->SetGridy();
+
+  TGraphErrors *g1 = new TGraphErrors (count, x[0], R[0], errx[0], errR[0]);
+  g1->GetYaxis()->SetRangeUser(0, 1.5);
+  g1->SetMarkerStyle(20);
+  g1->SetTitle("Grid transparency check;E2/E1;-QA/QK (normalised to 1)");
+  g1->Draw("Ap");
+
+  TGraphErrors *g2 = new TGraphErrors (count, x[1], R[1], errx[1], errR[1]);
+  g2->SetMarkerStyle(20);
+  g2->SetMarkerColor(kRed);
+  g2->SetLineColor(kRed);
+  g2->Draw("p");
+
+  TLegend *leg = new TLegend(0.6, 0.11, 0.89, 0.2);
+  leg->AddEntry(g1, "Purity Monitor 1", "lp");
+  leg->AddEntry(g2, "Purity Monitor 2", "lp");
+  leg->Draw();
 
   c->Print(Form("%s.png", outname.c_str()));
 
 
+  TGraphErrors *g1QK = new TGraphErrors (count, x[0], QK[0], errx[0], errV[0]);
+  g1QK->SetMarkerStyle(20);
+  TGraphErrors *g2QK = new TGraphErrors (count, x[1], QK[1], errx[1], errV[1]);
+  g2QK->SetMarkerStyle(20);
+  g2QK->SetMarkerColor(kRed);
+  g2QK->SetLineColor(kRed);
+  TGraphErrors *g1t1 = new TGraphErrors (count, x[0], t1arr[0], errx[0], errt[0]);
+  g1t1->SetMarkerStyle(20);
+  TGraphErrors *g2t1 = new TGraphErrors (count, x[1], t1arr[1], errx[1], errt[1]);
+  g2t1->SetMarkerStyle(20);
+  g2t1->SetMarkerColor(kRed);
+  g2t1->SetLineColor(kRed);
+
+  TGraphErrors *g1life = new TGraphErrors (count, x[0], life[0], errx[0], errlife[0]);
+  g1life->SetMarkerStyle(20);
+  TGraphErrors *g2life = new TGraphErrors (count, x[1], life[1], errx[1], errlife[1]);
+  g2life->SetMarkerStyle(20);
+  g2life->SetMarkerColor(kRed);
+  g2life->SetLineColor(kRed);
+
+  g1QK->GetYaxis()->SetRangeUser(10, 55);
+  g1QK->SetTitle("Grid transparency check;E2/E1;QK [mV]");
+  g1QK->Draw("Ap");
+  g2QK->Draw("p");
+  leg->Draw();
+  c->Print(Form("%s_QK.png", outname.c_str()));
+
+  
+  g1t1->GetYaxis()->SetRangeUser(25,50);
+  g1t1->SetTitle("Grid transparency check;E2/E1;t1 [#mus]");
+  g1t1->Draw("Ap");
+  g2t1->Draw("p");
+  leg->Draw();
+  tTheory[0][0]*=1e6;
+  tTheory[1][0]*=1e6;
+  double y1 =  (tTheory[0][0]-25.)/25.;
+  double y2 =  (tTheory[1][0]-25.)/25.;
+
+  cout << tTheory[0][0] << " " << tTheory[1][0] << " " << y1 << " " << y2 << endl;
+
+  TLine *l1 = new TLine(0, y1, 1, y1);
+  l1->SetLineColor(kBlue);
+  l1->SetLineWidth(2);
+  l1->Draw("ndc");
+  TLine *l2 = new TLine(0, y2, 1, y2);
+  l2->SetLineColor(kRed);
+  l2->SetLineWidth(2);
+  l2->Draw();
+  c->Print(Form("%s_t1.png", outname.c_str()));
+
+  g1life->GetYaxis()->SetRangeUser(0, 800);
+  g1life->SetTitle("Grid transparency check;E2/E1;Lifetime [#mus]");
+  g1life->Draw("Ap");
+  g2life->Draw("p");
+  leg->Draw();
+  c->Print(Form("%s_lifetime.png", outname.c_str()));
+
+
 }
 
 
-void getFieldValues(string name, int &E1, int &E2, int &E3){
-
-  string pattern1="Field_";
-  string pattern2="Vcm";
-
-  if (name.find(pattern1) != std::string::npos) {
-    std::string::size_type i = name.find(pattern1);
-    name.erase(i, pattern1.length());
-    i = name.find(pattern2);
-    name.erase(i);
-    // cout << name << endl;
-    sscanf(name.c_str(), "%d.%d.%d", &E1, &E2, &E3);
-    // cout << E1 << " " << E2 << " "  << E3 << endl;
-  }
-}
-
-string findFilename(string folder, string field, string ch){
-
-  DIR *dp;
-  dirent *d;
-  int count = 0;
-  int secs0, secs1;
-  int h, m;
-  string pattern1="."+ch+".traces_averages.root";
-  if((dp = opendir(folder.c_str())) == NULL)
-    perror("opendir");
-  
-  while((d = readdir(dp)) != NULL)
-    {
-      if(!strcmp(d->d_name,".") || !strcmp(d->d_name,".."))
-	continue;
-
-      std::string temps = d->d_name;
-      if (temps.find(pattern1) != std::string::npos) {
-	if (temps.find(field) != std::string::npos) {
-	  //	  cout << temps << endl;
-	  return temps;
-	}
-      } 
-      
-    }
-  return "nothing";
-  
-}
 
 
-int findAllFields(string folder, string fields[100]){
+Double_t ICARUSpolynomial(Double_t E){
 
-  DIR *dp;
-  dirent *d;
-  int count = 0;
-  int secs0, secs1;
-  int h, m;
-  string pattern1=".ch4.traces_averages.root";
-  string pattern2="FibreIn_";
-  if((dp = opendir(folder.c_str())) == NULL)
-    perror("opendir");
-  
-  while((d = readdir(dp)) != NULL)
-    {
-      if(!strcmp(d->d_name,".") || !strcmp(d->d_name,".."))
-	continue;
+  // transform E in kV/cm
 
-      std::string temps = d->d_name;
-      if (temps.find(pattern1) != std::string::npos) {
-	std::string::size_type i = temps.find(pattern1);
-	temps.erase(i, pattern1.length());
-	fields[count] = temps;
-	
-	count++;
-      } 
-      
-    }
-  return count;
-  
-  
+  E*=1e-3;
+  Double_t Et = 0.5;
+  Double_t T  = 89;      // Kelvin                                                                                                            
+  Double_t T0 = 90.371;  // Kelvin                                                                                                            
+  Double_t p0 = -0.03229;
+  Double_t p1 = 6.231;
+  Double_t p2 = -10.62;
+  Double_t p3 = 12.74;
+  Double_t p4 = -9.112;
+  Double_t p5 = 2.83;
+  Double_t w1 = -0.01481;
+  Double_t w2 = -0.0075;
+  Double_t w3 = 0.141;
+  Double_t w4 = 12.4;
+  Double_t w5 = 1.627;
+  Double_t w6 = 0.317;
+
+  Double_t K1 = p0 + p1*Et + p2*Et*Et + p3*Et*Et*Et + p4*Et*Et*Et*Et + p5*Et*Et*Et*Et*Et;
+  Double_t K2 = ( w1*(T-T0) + 1 )*( w3*Et*TMath::Log(1+w4/Et) + w5*TMath::Power(Et,w6) ) + w2*(T-T0);
+
+  Double_t vE = (p0 + p1*E + p2*E*E + p3*E*E*E + p4*E*E*E*E + p5*E*E*E*E*E)*(K2/K1);
+
+  // convert vE from mm/us to m/s                                                                                                             
+
+  vE *= (1e-3/1e-6);
+
+  return vE;
+
 }

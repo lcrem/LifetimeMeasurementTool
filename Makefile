@@ -11,8 +11,8 @@ ROOTLIBS   := $(shell root-config --nonew --libs)
 CFLAGS     += $(ROOTCFLAGS)
 LIBS       += $(ROOTLIBS)
 
-LDFLAGS     = -O
-CFLAGS  += -I$(FFTW_UTIL_INC_DIR)
+LDFLAGS     = -O -fpermissive
+CFLAGS  += -I$(FFTW_UTIL_INC_DIR) -fpermissive
 LDFLAGS += -L$(FFTW_UTIL_INSTALL_DIR)/lib
 
 findTauElec : findTauElec.o UsefulFunctions.o LifetimeConventions.o

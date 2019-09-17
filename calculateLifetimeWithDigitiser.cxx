@@ -34,11 +34,14 @@ double xmax = 0.015E-3;
 double ymin = -0.8;
 double ymax = +0.8;
 
-void getFields (string s, double fields[3]);
+void getFields (string s, double fields[3], int whichPrM);
 
 double getRawVoltageRMS(string basename, int irun, string chname);
 
 double getLifetimeFromCathode(TGraph *g1, double parlife[10]);
+double getLifetimeFromCathodeRyan(TGraph *g1, double parlife[10], bool isAnode);
+
+Double_t funcLauraBaseline(Double_t *x, Double_t *par);
 
 Double_t greenFunction(Double_t *x, Double_t *par);
 
@@ -58,7 +61,7 @@ TGraph *smoothGraph(TGraph *g, int nnn);
 
 int main(int argc, char *argv[]){
 
-  int nnum = 2;
+  int nnum = 1;
   string basename;
   int whichPrM=0;
   int runNumber;
@@ -78,7 +81,7 @@ int main(int argc, char *argv[]){
   string runname = basename + Form("/Run%03d/", runNumber);
 
   string infile      = runname + Form("PrM%i", whichPrM) + "_filtAvg.root";
-  string outfile     = runname + Form("PrM%i", whichPrM) + "_lifeInfo.root";
+  string outfilename = runname + Form("PrM%i", whichPrM) + "_lifeInfo.root";
   string outtxtfile  = runname + Form("PrM%i", whichPrM) + "_avgLifeInfo.txt";
   string lampFile    = runname + "/RawAverages_ch0.root";
 
@@ -96,12 +99,20 @@ int main(int argc, char *argv[]){
   string selog = Form("%s", elog);
   fclose(felog);
 
-  struct stat t_stat;
-  stat(Form("%s", runname.c_str()), &t_stat);
-  UInt_t timestamp = t_stat.st_ctime;
+  // struct stat t_stat;
+  // stat(Form("%s/Elog.txt", runname.c_str()), &t_stat);
+  //  UInt_t timestamp = t_stat.st_ctime;
+
+  ifstream inTimestamp;
+  UInt_t timestamp;
+  inTimestamp.open(Form("%s/Timestamp.txt", runname.c_str()));
+  inTimestamp >> timestamp;
+  inTimestamp.close();
+
+
 
   double fields[3], distance[3], tTheory[3];
-  getFields (elog, fields);
+  getFields (elog, fields, whichPrM);
   cout << " The three fields are " << fields[0] << " " << fields[1] << " " << fields[2] << " V/cm" << endl;
   if (fields[0]==0){
     cout << "I do not usually process fields at 0Vcm, are you sure that is what you want to do?" << endl;
@@ -109,10 +120,8 @@ int main(int argc, char *argv[]){
     return -1;
   }
 
-
-
   if (runNoise==-1){
-    cout << "Looking for the 0Vcm run number closest in time " << endl;
+    //    cout << "Looking for the 0Vcm run number closest in time " << endl;
     Int_t minDiff=999999999;
     Int_t tmpDiff;
     UInt_t timestampt;
@@ -128,13 +137,17 @@ int main(int argc, char *argv[]){
 	
 	char elogt[10000];
 	fgets(elogt, 100000, felogt);
-	
 	string selogt = Form("%s", elogt);
 	fclose(felogt);
-	struct stat t_statt;
-	stat(Form("%s/Run%03d/RawAverages_ch0.root", basename.c_str(), irun), &t_statt);
-	timestampt = t_statt.st_ctime;
 	
+	// struct stat t_statt;
+	// stat(Form("%s/Run%03d/RawAverages_ch0.root", basename.c_str(), irun), &t_statt);
+	// timestampt = t_statt.st_ctime;
+	
+	ifstream inTimestampt;
+	inTimestampt.open(Form("%s/Run%03d/Timestamp.txt", basename.c_str(), irun));
+	inTimestampt >> timestampt;
+	inTimestampt.close();
 	
 	string noiseFilet   = basename + Form("/Run%03d/", irun) + Form("PrM%i", whichPrM) + "_filtAvg.root";
 
@@ -145,18 +158,18 @@ int main(int argc, char *argv[]){
 	//	cout << "Here or not?" << endl;
 
 
-	getFields (elogt, fieldst);
+	getFields (elogt, fieldst, whichPrM);
 	//	cout << fieldst[0] << " " << fieldst[1] << " " << fieldst[2] << endl;
 
 	if (fieldst[0]>0) continue;
 
 	tmpDiff = int(timestampt) - int(timestamp);
 	tmpDiff = TMath::Abs(tmpDiff);
-	cout << tmpDiff << " " << minDiff << endl;
+	//	cout << tmpDiff << " " << minDiff << endl;
 	if (tmpDiff < minDiff ) {
 	  minDiff=tmpDiff;
 	  runNoise=irun;
-	  cout << "Best run noise so far " << runNoise << " " << fieldst[0] << " " << minDiff  << endl;
+	  //	  cout << "Best run noise so far " << runNoise << " " << fieldst[0] << " " << minDiff  << endl;
 	}
 	
 	
@@ -193,7 +206,7 @@ int main(int argc, char *argv[]){
   }
   
   cout << "Input file for filtered avg is " << infile << endl;
-  cout << "Output file for tree of lifetime info is " << outfile << endl;
+  cout << "Output file for tree of lifetime info is " << outfilename << endl;
   
 
   TFile *flamp = new TFile(lampFile.c_str(), "read");
@@ -263,12 +276,14 @@ int main(int argc, char *argv[]){
   double lifeCathodeOnly, lifeApprox, lifetime;
   double QK, QA, QKcorr, QAcorr;
   double t1, t2, t3;
+  double tauelecA, tauelecK;
+  double errQK, errQA, errQKcorr, errQAcorr, errt1, errt2, errt3, errLifeCathode, errLifeApprox, errLife;
   int numAveraged;
   
   double rawVoltageRMSk = getRawVoltageRMS(basename, runNumber, chname[0]);
   double rawVoltageRMSa = getRawVoltageRMS(basename, runNumber, chname[1]);
 
-  TFile *outLife = new TFile(outfile.c_str(), "recreate");
+  TFile *outLife = new TFile(outfilename.c_str(), "recreate");
   TTree *metaTree = new TTree("metaTree", "Metadata tree");
   metaTree->Branch("run",             &runNumber         );
   metaTree->Branch("runNoise",        &runNoise          );
@@ -296,6 +311,8 @@ int main(int argc, char *argv[]){
   lifeTree->Branch("t1",              &t1              );
   lifeTree->Branch("t2",              &t2              );
   lifeTree->Branch("t3",              &t3              );
+  lifeTree->Branch("tauElecK",        &tauelecK        );
+  lifeTree->Branch("tauElecA",        &tauelecA        );
 
 
   for (int inum=0; inum<nnum; inum++){
@@ -341,72 +358,96 @@ int main(int argc, char *argv[]){
 	}
       }
 
-      if (inum==0){
+      double tlifetime[20], terrs[20];
+      
+      int ok = UsefulFunctions::calculateLifetime(gfil[0], gfil[1],  whichPrM-1, tTheory, tlifetime, terrs, saveCanvas);
+      
+      numAveraged=howManyAvgInt[inum];
+ 
+      lifeCathodeOnly = 0.;
+      
+      QK         = tlifetime[2];
+      errQK      = terrs[2];
+      QA         = tlifetime[3];
+      errQA      = terrs[3];
+      t1         = tlifetime[6];
+      errt1      = terrs[6];
+      t2         = tlifetime[7];
+      errt2      = terrs[7];
+      t3         = tlifetime[8];
+      errt3      = terrs[8];
+      lifeApprox = tlifetime[0];
+      errLifeApprox = terrs[0];
+      lifetime   = tlifetime[1];
+      errLife    = terrs[1];
+      QKcorr     = tlifetime[4];
+      errQKcorr  = terrs[4];
+      QAcorr     = tlifetime[5];
+      errQAcorr  = terrs[5];
+      lifeCathodeOnly = tlifetime[9];
+      errLifeCathode = terrs[9];
+      tauelecK   = tlifetime[10];
+      tauelecA   = tlifetime[11];
+      
+      if (numAveraged==1000){
+	
 	c->cd();
-	TPaveText *pav = new TPaveText(0.25, 0.11, 0.99, 0.15, "NB NDC");
+
+	//lifeCathodeOnly = getLifetimeFromCathode(gfil[0], tlifetime);
+	// lifeCathodeOnly = getLifetimeFromCathodeRyan(gfil[1], tlifetime, true);
+	// lifeCathodeOnly = getLifetimeFromCathodeRyan(gfil[0], tlifetime, false);
+
+	printf("Lifetime from Cathode [us] : %8.2f +/- %8.2f \n", lifeCathodeOnly*1e6, errLifeCathode*1e6);
+	printf("Lifetime [us]              : %8.2f +/- %8.2f \n", lifetime*1e6, errLife*1e6);
+	printf("QK [mV]                    : %8.2f +/- %8.2f \n", QK, errQK);
+	printf("QA [mV]                    : %8.2f +/- %8.2f \n", QA, errQA);
+	printf("QKcorr [mV]                : %8.2f +/- %8.2f \n", QKcorr, errQKcorr);
+	printf("QAcorr [mV]                : %8.2f +/- %8.2f \n", QAcorr, errQAcorr);
+	printf("t1 [us]                    : %8.2f +/- %8.2f \n", t1*1e6, errt1*1e6);
+	printf("t2 [us]                    : %8.2f +/- %8.2f \n", t2*1e6, errt2*1e6);
+	printf("t3 [us]                    : %8.2f +/- %8.2f \n", t3*1e6, errt3*1e6);
+
+	fprintf(outFile, "Lifetime from Cathode [us] : %8.2f +/- %8.2f \n", lifeCathodeOnly*1e6, errLifeCathode*1e6);
+	fprintf(outFile, "Lifetime [us]              : %8.2f +/- %8.2f \n", lifetime*1e6, errLife*1e6);
+	fprintf(outFile, "QK [mV]                    : %8.2f +/- %8.2f \n", QK, errQK);
+	fprintf(outFile, "QA [mV]                    : %8.2f +/- %8.2f \n", QA, errQA);
+	fprintf(outFile, "t1 [us]                    : %8.2f +/- %8.2f \n", t1*1e6, errt1*1e6);
+	fprintf(outFile, "t2 [us]                    : %8.2f +/- %8.2f \n", t2*1e6, errt2*1e6);
+	fprintf(outFile, "t3 [us]                    : %8.2f +/- %8.2f \n", t3*1e6, errt3*1e6);
+
+	gStyle->SetOptFit(0);
+	TPaveText *pav = new TPaveText(0.5, 0.11, 0.89, 0.55, "NB NDC");
 	pav->SetFillColor(kWhite);
-	pav->AddText(elog);
+	//	pav->AddText(Form("Lifetime from Cathode [us] : %8.2f +/- %8.2f ", lifeCathodeOnly*1e6, errLifeCathode*1e6));
+	pav->AddText(Form("Lifetime [us] : %8.2f +/- %8.2f ", lifetime*1e6, errLife*1e6));
+	pav->AddText(Form("QK [mV] : %8.2f +/- %8.2f ", QK, errQK));
+	pav->AddText(Form("QA [mV] : %8.2f +/- %8.2f ", QA, errQA));
+	pav->AddText(Form("t1 [us] : %8.2f +/- %8.2f ", t1*1e6, errt1*1e6));
+	pav->AddText(Form("t2 [us] : %8.2f +/- %8.2f ", t2*1e6, errt2*1e6));
+	pav->AddText(Form("t3 [us] : %8.2f +/- %8.2f ", t3*1e6, errt3*1e6));
+
 	double min = TMath::MinElement(gfil[0]->GetN(), gfil[0]->GetY());
 	double max = TMath::MaxElement(gfil[1]->GetN(), gfil[1]->GetY());
 	if (max<5) max = 5.;
 	gfil[0]->GetYaxis()->SetRangeUser(min*1.2, max*1.2);
-	gfil[0]->SetTitle(Form("PrM%d, Filtered Averages and Noise subtracted;Time [s];Amplitude [mV]", whichPrM));
+	gfil[0]->SetTitle(Form("PrM%d, %d.%d.%dVcm, Filtered Averages and Noise subtracted;Time [s];Amplitude [mV]", whichPrM, int(fields[0]), int(fields[1]), int(fields[2])));
 	gfil[0]->Draw("Al");
 	gfil[1]->SetLineColor(kRed);
 	gfil[1]->Draw("l");
 	pav->Draw();
 	c->Print(Form("%s/PurityMonitor%d_filAvg_subNoise.png", runname.c_str(), whichPrM));
-      }
-     
-      double tlifetime[10];
+	c->Print(Form("%s/PurityMonitor%d_filAvg_subNoise.root", runname.c_str(), whichPrM));
       
-      int ok = UsefulFunctions::calculateLifetime(gfil[0], gfil[1],  whichPrM-1, tTheory, tlifetime, saveCanvas);
-      
-      numAveraged=howManyAvgInt[inum];
- 
-      lifeCathodeOnly = -999.;
-      lifeApprox = tlifetime[0];
-      lifetime   = tlifetime[1];
-      QK         = tlifetime[2];
-      QA         = tlifetime[3];
-      QKcorr     = tlifetime[4];
-      QAcorr     = tlifetime[5];
-      t1         = tlifetime[6];
-      t2         = tlifetime[7];
-      t3         = tlifetime[8];
 
 
-      if (numAveraged==1000){
-
-	lifeCathodeOnly = getLifetimeFromCathode(gfil[0], tlifetime);
-
-	printf("Lifetime from Cathode [us] : %8.2f \n", lifeCathodeOnly*1e6);
-	printf("Lifetime [us]              : %8.2f \n", lifetime*1e6);
-	printf("QK [mV]                    : %8.2f \n", QK);
-	printf("QA [mV]                    : %8.2f \n", QA);
-	printf("t1 [us]                    : %8.2f \n", t1*1e6);
-	printf("t2 [us]                    : %8.2f \n", t2*1e6);
-	printf("t3 [us]                    : %8.2f \n", t3*1e6);
-
-	fprintf(outFile, "Lifetime from Cathode [us] : %8.2f \n", lifeCathodeOnly*1e6);
-	fprintf(outFile, "Lifetime [us]              : %8.2f \n", lifetime*1e6);
-	fprintf(outFile, "QK [mV]                    : %8.2f \n", QK);
-	fprintf(outFile, "QA [mV]                    : %8.2f \n", QA);
-	fprintf(outFile, "t1 [us]                    : %8.2f \n", t1*1e6);
-	fprintf(outFile, "t2 [us]                    : %8.2f \n", t2*1e6);
-	fprintf(outFile, "t3 [us]                    : %8.2f \n", t3*1e6);
-
-	if (inum==0){
-	  c->cd();
-	  gStyle->SetOptFit(1);
-	  double min = TMath::MinElement(gfil[0]->GetN(), gfil[0]->GetY());
-	  double max = TMath::MaxElement(gfil[1]->GetN(), gfil[1]->GetY());
-	  if (max<5) max = 5.;
-	  gfil[0]->GetYaxis()->SetRangeUser(min*1.2, max*1.2);
-	  gfil[0]->SetTitle(Form("PrM%d, Filtered Averages and Noise subtracted;Time [ns];Amplitude [mV]", whichPrM));
-	  gfil[0]->Draw("Al");
-	  c->Print(Form("%s/PurityMonitor%d_cathodeOnlyFit.png", runname.c_str(), whichPrM));
-	}
+	// c->cd();
+	// gStyle->SetOptFit(1);
+	// if (max<5) max = 5.;
+	// gfil[0]->GetYaxis()->SetRangeUser(min*1.2, max*1.2);
+	// gfil[0]->SetTitle(Form("PrM%d, Filtered Averages and Noise subtracted;Time [ns];Amplitude [mV]", whichPrM));
+	// gfil[0]->Draw("Al");
+	// c->Print(Form("%s/PurityMonitor%d_cathodeOnlyFit.png", runname.c_str(), whichPrM));
+	
 
 	
       }
@@ -489,11 +530,27 @@ int main(int argc, char *argv[]){
   
 
 
-void getFields (string s, double fields[3]){
+void getFields (string s, double fields[3], int whichPrM){
   
 
   std::string ext("Vcm");
   
+  string torm = "field";
+  
+  size_t position = s.find(torm.c_str());   
+
+  s = s.substr(position + torm.size(), s.size()); 
+
+  // If it's PrM2 look for another field too
+  if (whichPrM==2){
+    if (s.find(torm) != std::string::npos) {
+      position = s.find(torm.c_str());   
+      
+      s = s.substr(position + torm.size(), s.size()); 
+      
+    }
+  }
+
   if (s.find(ext) != std::string::npos) {
     
     int place = s.find(ext);
@@ -503,15 +560,6 @@ void getFields (string s, double fields[3]){
   }
   
   // cout << s << endl;
-
-  string torm = "field";
-  
-  size_t position = s.find(torm.c_str());   
-
-  s = s.substr(position + torm.size(), s.size()); 
-
-  // cout << s << endl;
-
   std::replace( s.begin(), s.end(), '.', ' ');
   // cout << s << endl;
   
@@ -557,6 +605,9 @@ double getRawVoltageRMS(string basename, int irun, string chname){
   if ( stat(filename.c_str(), &st)==0 ){
     
     TFile *ftemp = new TFile(filename.c_str(), "read");
+    
+    if (!ftemp->GetListOfKeys()->Contains(Form("g_%s_1", chname.c_str())) ) return -1;
+	
     TGraph *gtemp = (TGraph*)ftemp->Get(Form("g_%s_1", chname.c_str()));
     rms = TMath::RMS(gtemp->GetN(), gtemp->GetY());
     delete gtemp;
@@ -588,6 +639,107 @@ Double_t greenFunction(Double_t *x, Double_t *par){
   if (t<=0) y = 0;
 
   return y;
+}
+
+Double_t funcLauraBaseline(Double_t *x, Double_t *par) {
+  Double_t F_elec=par[0];
+  Double_t T_life=par[1];
+  Double_t t0=par[2];
+  Double_t Q0=par[3];
+  Double_t t1=par[4];
+  Double_t baseline=par[5];
+  if(x[0]<t0) return baseline;
+  Double_t start=1./(t1*((1./T_life)-(1./F_elec)));
+  Double_t fallExp=TMath::Exp(-1*(x[0]-t0)/F_elec);
+  Double_t riseExp=TMath::Exp(-1*(x[0]-t0)/T_life);
+  if(x[0]<t1)
+    return baseline+Q0*start*(fallExp-riseExp);
+  Double_t bigExp=fallExp*(1 - TMath::Exp(-1*(t1-t0)*(1./T_life - 1./F_elec)));
+  return baseline+Q0*start*bigExp;
+}
+
+
+
+
+double getLifetimeFromCathodeRyan(TGraph *g1, double parlife[10], bool isAnode){
+
+  double_t t1 = parlife[6];
+  
+  double x0 = g1->GetX()[0];
+
+  double tauLife = 50.e-6;
+  double tauEl = 300.e-6;
+  double factor = 1/(1/tauLife-1/tauEl);
+  double peak = parlife[2];
+  double t0 = 4.e-6;
+  double baseline = 0.;
+
+  if (isAnode){
+    t0 += parlife[7];
+    x0 = parlife[7]-50.e-6;
+    t1 = t0+parlife[8];
+    peak = parlife[3];
+  } 
+
+  double Q0 = peak*t1/(exp(-(t1)/tauEl)-exp(-(t1)/tauLife))/factor;
+
+  TF1 *func = new TF1("func", funcLauraBaseline, x0, g1->GetX()[g1->GetN()-1], 6);
+
+  // cout << "factor " << factor << endl;
+  // cout << "GQ " << GQ << " \t GQmod " << GQmod << endl << endl;
+
+  func->SetParameters(tauEl, tauLife, t0, Q0, t1, baseline);
+  func->SetParLimits(0,tauEl*0.7, tauEl*1.3);
+  func->SetParLimits(1, 0., 0.01);
+  func->SetParLimits(3, Q0*(0.5*(isAnode) + 1.5*(!isAnode)), Q0*(1.5*(isAnode)+0.5*(!isAnode)) );
+
+
+
+  func->SetParName(0, "TauEl (s)");
+  func->SetParName(1, "TauLife (s)");
+  func->SetParName(2, "T0 (s)");
+  func->SetParName(3, "Q0");
+  func->SetParName(4, "T1 (s)");
+  func->SetParName(5, "Baseline (mV)");
+
+  func->SetLineColor(kMagenta);
+  func->SetLineWidth(2);
+
+  gStyle->SetOptStat();
+  gStyle->SetOptFit();
+  int status = g1->Fit("func","R");
+  func->Draw("same");
+
+  if (status!=0) return 0.;
+  
+  tauEl = func->GetParameter(0); 
+  tauLife = func->GetParameter(1);
+  t0 = func->GetParameter(2);
+  Q0 = func->GetParameter(3);
+  t1 = func->GetParameter(4);
+  baseline = func->GetParameter(5);
+  
+  factor = 1/(1/tauLife-1/tauEl);
+
+  Double_t start=1./(t1*((1./tauLife)-(1./tauEl)));
+  Double_t fallExp=TMath::Exp(-1*(t1-t0)/tauEl);
+  Double_t riseExp=TMath::Exp(-1*(t1-t0)/tauLife);
+  
+  double outMin = baseline+Q0*start*(fallExp-riseExp);
+
+  double funcAtt1 = func->Eval(t1);
+
+  double funcPeak = func->GetMinimum();
+  if (isAnode) funcPeak = func->GetMaximum(); 
+
+  cout << "Peak found by hand " << peak << endl;
+  cout << "Value of fitted function at T1 " << funcAtt1 << endl;
+  cout << "Peak of fitted function " << funcPeak << endl;
+  cout << "Peak found from the fitted GQ " << outMin << endl;
+
+  return tauLife;
+
+
 }
 
 
@@ -630,8 +782,11 @@ double getLifetimeFromCathode(TGraph *g1, double parlife[10]){
 
   gStyle->SetOptStat();
   gStyle->SetOptFit();
-  g1->Fit("func","RQ");
+  int status = g1->Fit("func","RQ");
   func->Draw("same");
+
+  if (status!=0) return 0.;
+  
 
   double outpar[5];
   for (int i=0; i<4; i++) outpar[i] = func->GetParameter(i);

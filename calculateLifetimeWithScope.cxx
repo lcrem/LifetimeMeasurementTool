@@ -159,9 +159,9 @@ int main(int argc, char *argv[]){
 
       }
 
-      double tlifetime[10];
+      double lifetime[10], lifeErrors[10];
       
-      int ok = UsefulFunctions::calculateLifetime(gdiff[1], gdiff[0],  whichPrM, tTheory, tlifetime, saveCanvas);
+      int ok = UsefulFunctions::calculateLifetime(gdiff[1], gdiff[0],  whichPrM, tTheory, lifetime, lifeErrors, saveCanvas);
       
       if (ok==1) hpurity[inum]->Fill(tlifetime[0]);
 
