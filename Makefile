@@ -31,7 +31,7 @@ findAllAveragesDigitiser : findAllAveragesDigitiser.o RawDigitiser.o LifetimeCon
 	g++ $(CFLAGS) -o $@ findAllAveragesDigitiser.o RawDigitiser.o LifetimeConventions.o UsefulFunctions.o dict.o $(LDFLAGS) $(LIBS) -lRootFftwWrapper -I.
 
 calculateLifetimeWithScope : calculateLifetimeWithScope.o LifetimeConventions.o UsefulFunctions.o
-	g++ -o $@ calculateLifetimeWithScope.o LifetimeConventions.o UsefulFunctions.o $(LDFLAGS) $(LIBS) -I.
+	g++ -o $@ calculateLifetimeWithScope.o LifetimeConventions.o UsefulFunctions.o $(LDFLAGS) $(LIBS) -lRootFftwWrapper -I.
 
 calculateLifetimeWithDigitiser : calculateLifetimeWithDigitiser.o LifetimeConventions.o UsefulFunctions.o 
 	g++ -o $@ calculateLifetimeWithDigitiser.o LifetimeConventions.o UsefulFunctions.o $(LDFLAGS) $(LIBS) -lRootFftwWrapper -I.
