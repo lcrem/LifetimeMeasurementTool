@@ -31,9 +31,12 @@ findAllAveragesDigitiser : findAllAveragesDigitiser.o RawDigitiser.o LifetimeCon
 
 calculateLifetimeWithScope : calculateLifetimeWithScope.o LifetimeConventions.o UsefulFunctions.o
 	g++ -o $@ calculateLifetimeWithScope.o LifetimeConventions.o UsefulFunctions.o $(LDFLAGS) $(LIBS) -lRootFftwWrapper -I.
+<<<<<<< HEAD
 
 lookAtCathodeOnly : lookAtCathodeOnly.o LifetimeConventions.o UsefulFunctions.o
 	g++ -o $@ lookAtCathodeOnly.o LifetimeConventions.o UsefulFunctions.o $(LDFLAGS) $(LIBS) -lRootFftwWrapper -I.
+=======
+>>>>>>> d6d6f2135a9d3c29203a168819446d25dda68327
 
 calculateLifetimeWithDigitiser : calculateLifetimeWithDigitiser.o LifetimeConventions.o UsefulFunctions.o 
 	g++ -o $@ calculateLifetimeWithDigitiser.o LifetimeConventions.o UsefulFunctions.o $(LDFLAGS) $(LIBS) -lRootFftwWrapper -I.
