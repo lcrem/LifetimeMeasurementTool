@@ -1,8 +1,7 @@
-all: findTauElec makeTGraphs calculateLifetimeWithScope findAllAverages findAllAveragesDigitiser decodeEvent calculateLifetimeWithDigitiser makeFFTs findFilteredAverages resizeRawAverages
+all: findTauElec makeTGraphs calculateLifetimeWithScope findAllAverages findAllAveragesDigitiser decodeEvent calculateLifetimeWithDigitiser makeFFTs findFilteredAverages resizeRawAverages lookAtCathodeOnly
 
 PROGNAME    = findTauElec makeTGraphs findAllAverages findAllAveragesDigitiser
-SOURCES     = findTauElec.cxx UsefulFunctions.cxx LifetimeConventions.cxx makeTGraphs.cxx \
-RawDigitiser.cxx calculateLifetimeWithScope.cxx
+SOURCES     = findTauElec.cxx UsefulFunctions.cxx LifetimeConventions.cxx makeTGraphs.cxx RawDigitiser.cxx calculateLifetimeWithScope.cxx
 INCLUDES    = LifetimeConventions.h 
 OBJECTS     = $(patsubst %.cxx, %.o, $(SOURCES))
 ROOTCFLAGS := $(shell root-config --cflags)
@@ -31,7 +30,10 @@ findAllAveragesDigitiser : findAllAveragesDigitiser.o RawDigitiser.o LifetimeCon
 	g++ $(CFLAGS) -o $@ findAllAveragesDigitiser.o RawDigitiser.o LifetimeConventions.o UsefulFunctions.o dict.o $(LDFLAGS) $(LIBS) -lRootFftwWrapper -I.
 
 calculateLifetimeWithScope : calculateLifetimeWithScope.o LifetimeConventions.o UsefulFunctions.o
-	g++ -o $@ calculateLifetimeWithScope.o LifetimeConventions.o UsefulFunctions.o $(LDFLAGS) $(LIBS) -I.
+	g++ -o $@ calculateLifetimeWithScope.o LifetimeConventions.o UsefulFunctions.o $(LDFLAGS) $(LIBS) -lRootFftwWrapper -I.
+
+lookAtCathodeOnly : lookAtCathodeOnly.o LifetimeConventions.o UsefulFunctions.o
+	g++ -o $@ lookAtCathodeOnly.o LifetimeConventions.o UsefulFunctions.o $(LDFLAGS) $(LIBS) -lRootFftwWrapper -I.
 
 calculateLifetimeWithDigitiser : calculateLifetimeWithDigitiser.o LifetimeConventions.o UsefulFunctions.o 
 	g++ -o $@ calculateLifetimeWithDigitiser.o LifetimeConventions.o UsefulFunctions.o $(LDFLAGS) $(LIBS) -lRootFftwWrapper -I.
@@ -67,6 +69,9 @@ findAllAveragesDigitiser.o : findAllAveragesDigitiser.cxx LifetimeConventions.cx
 	g++ ${CFLAGS} -c -g -o $@ $<
 
 calculateLifetimeWithScope.o : calculateLifetimeWithScope.cxx LifetimeConventions.cxx UsefulFunctions.cxx
+	g++ ${CFLAGS} -c -g -o $@ $<
+
+lookAtCathodeOnly.o : lookAtCathodeOnly.cxx LifetimeConventions.cxx UsefulFunctions.cxx
 	g++ ${CFLAGS} -c -g -o $@ $<
 
 calculateLifetimeWithDigitiser.o : calculateLifetimeWithDigitiser.cxx LifetimeConventions.cxx UsefulFunctions.cxx
