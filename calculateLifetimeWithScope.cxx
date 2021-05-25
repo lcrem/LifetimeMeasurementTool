@@ -13,6 +13,7 @@
 #include "TStyle.h"
 #include "TSystem.h"
 #include "TF1.h"
+#include "TPaveText.h"
 
 #include <iostream>
 #include <fstream>
@@ -62,14 +63,17 @@ int main(int argc, char *argv[]){
   double fields[3], distance[3], tTheory[3];
   getFields (fieldname, fields);
 
-  if (whichPrM%2==0){
+  if (whichPrM==1){
     distance[0] = PrM1distance[0];
     distance[1] = PrM1distance[1];
     distance[2] = PrM1distance[2];
-  } else {
+  } else if (whichPrM==2) {
     distance[0] = PrM2distance[0];
     distance[1] = PrM2distance[1];
     distance[2] = PrM2distance[2];
+  } else {
+    cout << "I do not know this purity monitor" << endl;
+    return -1;
   }
   
   cout << "Output file is " << outfile << endl;
@@ -105,18 +109,36 @@ int main(int argc, char *argv[]){
   smoothing[1] =  UsefulFunctions::getSmoothingNumber(timeStep, tTheory[0]);
   double newy[20000];
   double newx[20000];  
+
+  double lifeCathodeOnly, lifeApprox, lifetime;
+  double QK, QA, QKcorr, QAcorr;
+  double t1, t2, t3;
+  double tauelecA, tauelecK;
+  double errQK, errQA, errQKcorr, errQAcorr, errt1, errt2, errt3, errLifeCathode, errLifeApprox, errLife;
+  int numAveraged;
   
   
-  TFile *out = new TFile(outfile.c_str(), "recreate");
+  TFile *outLife = new TFile(outfile.c_str(), "recreate");
+  TTree *lifeTree = new TTree("lifeTree", Form("Lifetime info for Purity Monitor %d", whichPrM));
+  lifeTree->Branch("fields[3]",       fields           );
+  lifeTree->Branch("numAveraged",     &numAveraged     );
+  lifeTree->Branch("lifeCathodeOnly", &lifeCathodeOnly );
+  lifeTree->Branch("lifeApprox",      &lifeApprox      );
+  lifeTree->Branch("lifetime",        &lifetime        );
+  lifeTree->Branch("QK",              &QK              );
+  lifeTree->Branch("QA",              &QA              );
+  lifeTree->Branch("QKcorr",          &QKcorr          );
+  lifeTree->Branch("QAcorr",          &QAcorr          );
+  lifeTree->Branch("t1",              &t1              );
+  lifeTree->Branch("t2",              &t2              );
+  lifeTree->Branch("t3",              &t3              );
+  lifeTree->Branch("tauElecK",        &tauelecK        );
+  lifeTree->Branch("tauElecA",        &tauelecA        );
   
   TH1D *hpurity[5];
 
   bool saveCanvas;
 
-  double lifeCathodeOnly, lifeApprox, lifetime;
-  double QK, QA, QKcorr, QAcorr;
-  double t1, t2, t3;
-  int numAveraged;
   
   TCanvas *c = new TCanvas("c");
 
@@ -154,63 +176,119 @@ int main(int argc, char *argv[]){
 	// Filter out everything above 200kHz                                                                                     
         gdiff[ich] = FFTtools::simplePassBandFilter(g1, 0., 100000000.);
 	
+	// change to mV
+	for (int ip=0; ip<gdiff[ich]->GetN(); ip++) gdiff[ich]->GetY()[ip]*=1000.;
+
 	//	gdiff[ich] = smoothGraph(gdiff[ich], 5);
 	//	gdiff[ich] = (TGraph*)g1->Clone();
 
       }
 
-      double lifetime[10], lifeErrors[10];
+      double tlifetime[10], terrs[10];
       
-      int ok = UsefulFunctions::calculateLifetime(gdiff[1], gdiff[0],  whichPrM, tTheory, lifetime, lifeErrors, saveCanvas);
+      int ok = UsefulFunctions::calculateLifetime(gdiff[1], gdiff[0],  whichPrM-1, tTheory, tlifetime, terrs, saveCanvas);
       
       if (ok==1) hpurity[inum]->Fill(tlifetime[0]);
 
       numAveraged=howManyAvgInt[inum];
 
-      lifeCathodeOnly = -999.;
+      lifeCathodeOnly = 0;
 
       QK         = tlifetime[2];
+      errQK      = terrs[2];
       QA         = tlifetime[3];
+      errQA      = terrs[3];
       t1         = tlifetime[6];
+      errt1      = terrs[6];
       t2         = tlifetime[7];
+      errt2      = terrs[7];
       t3         = tlifetime[8];
+      errt3      = terrs[8];
       lifeApprox = tlifetime[0];
+      errLifeApprox = terrs[0];
       lifetime   = tlifetime[1];
+      errLife    = terrs[1];
       QKcorr     = tlifetime[4];
+      errQKcorr  = terrs[4];
       QAcorr     = tlifetime[5];
+      errQAcorr  = terrs[5];
+      lifeCathodeOnly = tlifetime[9];
+      errLifeCathode = terrs[9];
+      tauelecK   = tlifetime[10];
+      tauelecA   = tlifetime[11];
 
       if (numAveraged==1000){
 
-        lifeCathodeOnly = getLifetimeFromCathode(gdiff[1], tlifetime);
+	//        lifeCathodeOnly = getLifetimeFromCathode(gdiff[1], lifetime);
 
-        printf("Lifetime from Cathode [us] : %8.2f \n", lifeCathodeOnly*1e6);
-        printf("Lifetime [us]              : %8.2f \n", lifetime*1e6);
-        printf("QK [mV]                    : %8.2f \n", QK);
-        printf("QA [mV]                    : %8.2f \n", QA);
-        printf("t1 [us]                    : %8.2f \n", t1*1e6);
-        printf("t2 [us]                    : %8.2f \n", t2*1e6);
-        printf("t3 [us]                    : %8.2f \n", t3*1e6);
+        printf("Lifetime from Cathode [us] : %8.2f +/- %8.2f \n", lifeCathodeOnly*1e6, errLifeCathode*1e6);
+        printf("Lifetime [us]              : %8.2f +/- %8.2f \n", lifetime*1e6, errLife*1e6);
+        printf("QK [mV]                    : %8.2f +/- %8.2f \n", QK, errQK);
+        printf("QA [mV]                    : %8.2f +/- %8.2f \n", QA, errQA);
+        printf("QKcorr [mV]                : %8.2f +/- %8.2f \n", QKcorr, errQKcorr);
+        printf("QAcorr [mV]                : %8.2f +/- %8.2f \n", QAcorr, errQAcorr);
+        printf("t1 [us]                    : %8.2f +/- %8.2f \n", t1*1e6, errt1*1e6);
+        printf("t2 [us]                    : %8.2f +/- %8.2f \n", t2*1e6, errt2*1e6);
+        printf("t3 [us]                    : %8.2f +/- %8.2f \n", t3*1e6, errt3*1e6);
 
         if (inum==0){
           c->cd();
-          gStyle->SetOptFit(1);
-          double min = TMath::MinElement(gdiff[0]->GetN(), gdiff[0]->GetY());
-          double max = TMath::MaxElement(gdiff[1]->GetN(), gdiff[1]->GetY());
-          if (max<5) max = 5.;
-	  //          gdiff[1]->GetYaxis()->SetRangeUser(min*1.2, max*1.2);
-          gdiff[1]->SetTitle(Form("PrM%d, Filtered Averages;Time [s];Amplitude [V]", whichPrM));
-          gdiff[1]->Draw("Al");
-	  gdiff[0]->Draw("l");
-	  c->Print(Form("%s_PurityMonitor%d_cathodeOnlyFit.png", (basename+fieldname).c_str(), whichPrM));
-          c->Print(Form("%s_PurityMonitor%d_cathodeOnlyFit.root", (basename+fieldname).c_str(), whichPrM));
+
+          // gStyle->SetOptFit(1);
+          // double min = TMath::MinElement(gdiff[0]->GetN(), gdiff[0]->GetY());
+          // double max = TMath::MaxElement(gdiff[1]->GetN(), gdiff[1]->GetY());
+          // if (max<5) max = 5.;
+	  // //          gdiff[1]->GetYaxis()->SetRangeUser(min*1.2, max*1.2);
+          // gdiff[1]->SetTitle(Form("PrM%d, Filtered Averages;Time [s];Amplitude [V]", whichPrM));
+          // gdiff[1]->Draw("Al");
+	  // gdiff[0]->Draw("l");
+	  // c->Print(Form("%s_PurityMonitor%d_cathodeOnlyFit.png", (basename+fieldname).c_str(), whichPrM));
+          // c->Print(Form("%s_PurityMonitor%d_cathodeOnlyFit.root", (basename+fieldname).c_str(), whichPrM));
+
+	  gStyle->SetOptFit(0);
+	  TPaveText *pav = new TPaveText(0.5, 0.5, 0.85, 0.89, "NB NDC");
+	  pav->SetFillColor(kWhite);
+	  //      pav->AddText(Form("Lifetime from Cathode [us] : %8.2f +/- %8.2f ", lifeCathodeOnly*1e6, errLifeCathode*1e6));                          
+	  pav->AddText(Form("Lifetime [us] : %8.2f +/- %8.2f ", lifetime*1e6, errLife*1e6));
+	  pav->AddText(Form("QK [mV] : %8.2f +/- %8.2f ", QK, errQK));
+	  pav->AddText(Form("QA [mV] : %8.2f +/- %8.2f ", QA, errQA));
+	  pav->AddText(Form("QKcorr [mV] : %8.2f +/- %8.2f ", QKcorr, errQKcorr));
+	  pav->AddText(Form("QAcorr [mV] : %8.2f +/- %8.2f ", QAcorr, errQAcorr));
+	  pav->AddText(Form("t1 [us] : %8.2f +/- %8.2f ", t1*1e6, errt1*1e6));
+	  pav->AddText(Form("t2 [us] : %8.2f +/- %8.2f ", t2*1e6, errt2*1e6));
+	  pav->AddText(Form("t3 [us] : %8.2f +/- %8.2f ", t3*1e6, errt3*1e6));
+
+	  double min = TMath::MinElement(gdiff[1]->GetN(), gdiff[1]->GetY());
+	  double max = TMath::MaxElement(gdiff[0]->GetN(), gdiff[0]->GetY());
+	  double maxx = TMath::Max(-min, max);
+	  if (max<5) max = 5.;
+	  gdiff[0]->GetYaxis()->SetRangeUser(-maxx*1.2, maxx*1.2);
+	  gdiff[0]->GetXaxis()->SetRangeUser(-50.e-6, 0.015);
+	  gdiff[0]->SetTitle(Form("PrM%d, %d.%d.%dVcm;Time [s];Amplitude [mV]", whichPrM, int(fields[0]), int(fields[1]), int(fields[2])));
+	  gdiff[0]->SetLineWidth(2);
+	  gdiff[1]->SetLineWidth(2);
+	  gdiff[0]->SetLineColor(kRed);
+	  gdiff[0]->Draw("Al");
+	  gdiff[1]->Draw("l");
+	  pav->Draw();
+	  c->Print(Form("%s_PurityMonitor%d.png", (basename+fieldname).c_str(), whichPrM));
+	  c->Print(Form("%s_PurityMonitor%d.root", (basename+fieldname).c_str(), whichPrM));
+
+
         }
 
       }
+      outLife->cd();
+      lifeTree->Fill();
   
     }
     
   }
   
+  outLife->cd();
+  lifeTree->Write();
+  outLife->Close();
+
   FILE * pFile;
   
   cout << "Writing these info to " << outtxtfile << endl;
@@ -253,7 +331,7 @@ int main(int argc, char *argv[]){
     // fprintf(pFile, "lifetime : %12.4e \n",  lifetime  );
     // fprintf(pFile, "lifetime2: %12.4e \n",  lifetime2 );
   
-    out->cd();
+    outLife->cd();
     hpurity[inum]->Write(Form("hpurity_%d", inum));
   }
 
