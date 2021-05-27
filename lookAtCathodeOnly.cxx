@@ -83,36 +83,17 @@ int main(int argc, char *argv[]){
   
   double timedelay=0;
   
-  string stimedelay = basename + fieldname  + ".ch1.traces_averages.root";
-  TFile *ftimedelay = new TFile (stimedelay.c_str(), "read");
-  TGraph *gtimedelay = (TGraph*)ftimedelay->Get("justAvg");
-  double *xTimeDelay = gtimedelay->GetX();
-  double *yTimeDelay = gtimedelay->GetY();
-  double baseY = yTimeDelay[0];
-  double step = TMath::MaxElement(gtimedelay->GetN(), yTimeDelay)*0.9;
-  double timeStep = xTimeDelay[1]-xTimeDelay[0];
-  for (int ip=0; ip<gtimedelay->GetN(); ip++){
-    if (yTimeDelay[ip]>(step)){
-      timedelay = xTimeDelay[ip];
-      break;
-    }
-  }
-  ftimedelay->Close();
-  cout << "The time delay is " << timedelay << endl;
-
   for (int i=0; i<3; i++){
     tTheory[i] = distance[i]/UsefulFunctions::ICARUSpolynomial(fields[i]);
-    cout << distance[i] << " " << fields[i] << " " << tTheory[i] << " " << timeStep << " " << UsefulFunctions::getSmoothingNumber(timeStep, tTheory[i]) <<endl;
+    cout << distance[i] << " " << fields[i] << " " << tTheory[i] << " " << endl;
   }
-  int smoothing[2];
-  smoothing[0] =  UsefulFunctions::getSmoothingNumber(timeStep, tTheory[2]);
-  smoothing[1] =  UsefulFunctions::getSmoothingNumber(timeStep, tTheory[0]);
+
   double newy[20000];
   double newx[20000];  
 
   double lifeCathodeOnly, lifeApprox, lifetime;
   double QK, QA, QKcorr, QAcorr;
-  double t1, t2, t3;
+  double t1, t2, t3, tK, tGK, errtK, errtGK;
   double tauelecA, tauelecK;
   double errQK, errQA, errQKcorr, errQAcorr, errt1, errt2, errt3, errLifeCathode, errLifeApprox, errLife;
   int numAveraged;
@@ -147,14 +128,13 @@ int main(int argc, char *argv[]){
     if(inum==0) saveCanvas=true;
     else saveCanvas=false;
 
-    hpurity[inum]= new TH1D (Form("hpurity_%d", inum), "", 1000, 0, 0.005);
     double finalNumbers[2][3]; // [0 anode, 1 cathode] [0 amplitude, 1 start time, 2 peak time]
 
     for (int igraph=0; igraph<howManyGraphs[inum]; igraph++){
 
       TGraph *gdiff[2];
       
-      for (int ich=0; ich<2; ich++){
+      for (int ich=1; ich<2; ich++){
 	string f1 = basename + fieldname  + "." + chname[ich] +".traces_averages.root";
         
 	TFile *file1 = new TFile(f1.c_str(), "read");
@@ -185,36 +165,59 @@ int main(int argc, char *argv[]){
       }
 
       double tlifetime[10], terrs[10];
-      int ok = UsefulFunctions::calculateLifetime(gdiff[1], gdiff[0],  gdiff[0], whichPrM-1, tTheory, tlifetime, lifeErrors, saveCanvas);
+      Double_t tauelecK, tauelecA, gainAoverK;
+
+      switch(whichPrM){
+      case 1:
+	tauelecK   = PrM1preamp[0];
+	tauelecA   = PrM1preamp[1];
+	gainAoverK = PrM1preamp[2];
+	break;
+      case 2:
+	tauelecK   = PrM2preamp[0];
+	tauelecA   = PrM2preamp[1];
+	gainAoverK = PrM2preamp[2];
+	break;
+      }
+
+      int nK      = gdiff[1]->GetN();
+      double *xK  = gdiff[1]->GetX();
+      double *yK  = gdiff[1]->GetY();
+
+      int loc;
+      double peak=0;
+
+      // std::cout << " Cathode field " << tTheory[0] << std::endl;                                                                                        
+
+      for (int ip=nK-2; ip>0; ip--){
+	if (xK[ip]<0) break;
+	// if (yK[ip]<peak && (xK[ip]>(tTheory[0]-100.E-6)) && (xK[ip]<(tTheory[0]+100.E-6)) ){                                                            
+	if (yK[ip]<peak){
+	  peak = yK[ip];
+	  loc = ip;
+	}
+      }
       
-      if (ok==1) hpurity[inum]->Fill(tlifetime[0]);
+      tGK = xK[loc];
+      QK = yK[loc];
+      // std::cout << "K time and K " << fittedKtime << " " << fittedK << std::endl;                                                                       
+      tK = 0.;
 
       numAveraged=howManyAvgInt[inum];
 
       lifeCathodeOnly = 0;
 
-      QK         = tlifetime[2];
-      errQK      = terrs[2];
-      QA         = tlifetime[3];
-      errQA      = terrs[3];
-      t1         = tlifetime[6];
-      errt1      = terrs[6];
-      t2         = tlifetime[7];
-      errt2      = terrs[7];
-      t3         = tlifetime[8];
-      errt3      = terrs[8];
-      lifeApprox = tlifetime[0];
-      errLifeApprox = terrs[0];
-      lifetime   = tlifetime[1];
-      errLife    = terrs[1];
-      QKcorr     = tlifetime[4];
-      errQKcorr  = terrs[4];
-      QAcorr     = tlifetime[5];
-      errQAcorr  = terrs[5];
-      lifeCathodeOnly = tlifetime[9];
-      errLifeCathode = terrs[9];
-      tauelecK   = tlifetime[10];
-      tauelecA   = tlifetime[11];
+      errtK=errtGK=1.e-6;
+
+      t1 = tGK-tK;
+
+      errt1 = errtGK;
+
+      double taulife=0.001;
+
+      double Kcorrection = UsefulFunctions::getCorrectionFactor(tGK, tauelecK, taulife); 
+
+      QKcorr=QK/Kcorrection;
 
       if (numAveraged==1000){
 
@@ -230,54 +233,11 @@ int main(int argc, char *argv[]){
         printf("t2 [us]                    : %8.2f +/- %8.2f \n", t2*1e6, errt2*1e6);
         printf("t3 [us]                    : %8.2f +/- %8.2f \n", t3*1e6, errt3*1e6);
 
-        if (inum==0){
-          c->cd();
-
-          // gStyle->SetOptFit(1);
-          // double min = TMath::MinElement(gdiff[0]->GetN(), gdiff[0]->GetY());
-          // double max = TMath::MaxElement(gdiff[1]->GetN(), gdiff[1]->GetY());
-          // if (max<5) max = 5.;
-	  // //          gdiff[1]->GetYaxis()->SetRangeUser(min*1.2, max*1.2);
-          // gdiff[1]->SetTitle(Form("PrM%d, Filtered Averages;Time [s];Amplitude [V]", whichPrM));
-          // gdiff[1]->Draw("Al");
-	  // gdiff[0]->Draw("l");
-	  // c->Print(Form("%s_PurityMonitor%d_cathodeOnlyFit.png", (basename+fieldname).c_str(), whichPrM));
-          // c->Print(Form("%s_PurityMonitor%d_cathodeOnlyFit.root", (basename+fieldname).c_str(), whichPrM));
-
-	  gStyle->SetOptFit(0);
-	  TPaveText *pav = new TPaveText(0.5, 0.5, 0.85, 0.89, "NB NDC");
-	  pav->SetFillColor(kWhite);
-	  //      pav->AddText(Form("Lifetime from Cathode [us] : %8.2f +/- %8.2f ", lifeCathodeOnly*1e6, errLifeCathode*1e6));                          
-	  pav->AddText(Form("Lifetime [us] : %8.2f +/- %8.2f ", lifetime*1e6, errLife*1e6));
-	  pav->AddText(Form("QK [mV] : %8.2f +/- %8.2f ", QK, errQK));
-	  pav->AddText(Form("QA [mV] : %8.2f +/- %8.2f ", QA, errQA));
-	  pav->AddText(Form("QKcorr [mV] : %8.2f +/- %8.2f ", QKcorr, errQKcorr));
-	  pav->AddText(Form("QAcorr [mV] : %8.2f +/- %8.2f ", QAcorr, errQAcorr));
-	  pav->AddText(Form("t1 [us] : %8.2f +/- %8.2f ", t1*1e6, errt1*1e6));
-	  pav->AddText(Form("t2 [us] : %8.2f +/- %8.2f ", t2*1e6, errt2*1e6));
-	  pav->AddText(Form("t3 [us] : %8.2f +/- %8.2f ", t3*1e6, errt3*1e6));
-
-	  double min = TMath::MinElement(gdiff[1]->GetN(), gdiff[1]->GetY());
-	  double max = TMath::MaxElement(gdiff[0]->GetN(), gdiff[0]->GetY());
-	  double maxx = TMath::Max(-min, max);
-	  if (max<5) max = 5.;
-	  gdiff[0]->GetYaxis()->SetRangeUser(-maxx*1.2, maxx*1.2);
-	  gdiff[0]->GetXaxis()->SetRangeUser(-50.e-6, 0.015);
-	  gdiff[0]->SetTitle(Form("PrM%d, %d.%d.%dVcm;Time [s];Amplitude [mV]", whichPrM, int(fields[0]), int(fields[1]), int(fields[2])));
-	  gdiff[0]->SetLineWidth(2);
-	  gdiff[1]->SetLineWidth(2);
-	  gdiff[0]->SetLineColor(kRed);
-	  gdiff[0]->Draw("Al");
-	  gdiff[1]->Draw("l");
-	  pav->Draw();
-	  c->Print(Form("%s_PurityMonitor%d.png", (basename+fieldname).c_str(), whichPrM));
-	  c->Print(Form("%s_PurityMonitor%d.root", (basename+fieldname).c_str(), whichPrM));
-
-
-        }
 
       }
+
       outLife->cd();
+      gdiff[1]->Write("gfil_k");
       lifeTree->Fill();
   
     }
