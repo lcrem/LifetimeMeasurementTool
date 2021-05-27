@@ -1,4 +1,4 @@
-all: findTauElec makeTGraphs calculateLifetimeWithScope findAllAverages findAllAveragesDigitiser decodeEvent calculateLifetimeWithDigitiser makeFFTs findFilteredAverages resizeRawAverages
+all: findTauElec makeTGraphs findAllAverages findAllAveragesDigitiser decodeEvent calculateLifetimeWithDigitiser makeFFTs findFilteredAverages resizeRawAverages makeElogEntry
 
 PROGNAME    = findTauElec makeTGraphs findAllAverages findAllAveragesDigitiser
 SOURCES     = findTauElec.cxx UsefulFunctions.cxx LifetimeConventions.cxx makeTGraphs.cxx \
@@ -14,6 +14,9 @@ LIBS       += $(ROOTLIBS)
 LDFLAGS     = -O -fpermissive
 CFLAGS  += -I$(FFTW_UTIL_INC_DIR) -fpermissive
 LDFLAGS += -L$(FFTW_UTIL_INSTALL_DIR)/lib
+
+makeElogEntry : makeElogEntry.o 
+	g++ -o $@ makeElogEntry.o $(LDFLAGS) $(LIBS) -I.
 
 findTauElec : findTauElec.o UsefulFunctions.o LifetimeConventions.o
 	g++ -o $@ findTauElec.o UsefulFunctions.o LifetimeConventions.o $(LDFLAGS) $(LIBS) -I.
@@ -58,6 +61,9 @@ LifetimeConventions.o : LifetimeConventions.cxx LifetimeConventions.h
 	g++ ${CFLAGS} -c -g -o $@ $<
 
 makeTGraphs.o : makeTGraphs.cxx RawDigitiser.cxx LifetimeConventions.cxx
+	g++ ${CFLAGS} -c -g -o $@ $<
+
+makeElogEntry.o : makeElogEntry.cxx 
 	g++ ${CFLAGS} -c -g -o $@ $<
 
 findAllAverages.o : findAllAverages.cxx LifetimeConventions.cxx UsefulFunctions.cxx RawDigitiser.cxx
