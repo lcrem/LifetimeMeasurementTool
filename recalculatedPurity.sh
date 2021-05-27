@@ -18,6 +18,17 @@ do
 #  echo $run
     run=$DIRECTORY/Run$runNum/
 
+
+    if [ -f $run/BadFlag ]; then
+	continue;
+    fi
+
+    if [ -f $run/Calibration ]; then
+	continue;
+    fi
+
+
+
     if [ -f $run/PrM2_filtAvg.root ]; then
 	echo "Run is $runNum : filtered avg for PrM 2 not found!"
 	./calculateLifetimeWithDigitiser $DIRECTORY $runNum 2 $noiseRun

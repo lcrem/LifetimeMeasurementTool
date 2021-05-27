@@ -165,6 +165,8 @@ int main(int argc, char *argv[]){
       for (int ich=0; ich<3; ich++){
 	// Filter out everything above 200kHz
 	gfil[ich] = FFTtools::simplePassBandFilter(gint[ich], 0., 200000000.);
+	// Filter out everything above 1MHz
+	//gfil[ich] = FFTtools::simplePassBandFilter(gint[ich], 0., 1000000000.);
 	
 	// Apply kernel 100
 	gfil[ich] = smoothGraph(gfil[ich], 100);
@@ -273,7 +275,7 @@ TGraph *smoothGraph(TGraph *g, int nnn){
   double *x = g->GetX();
   double *y = g->GetY();
 
-  double *newy = new double [1000000];
+  double *newy = new double [1500000];
 
   int count=0;
   int insidecount=0;

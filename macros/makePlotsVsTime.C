@@ -4,8 +4,9 @@
 
 // Filling ended roughly with run 341
 // From run 342 Cryostat is full
+// From run 1000 new style tree
 
-void makePlotsVsTime(int whichPrM=2, double whichField=50, int firstRun=342,  int maxRun=-1, string addString="" ){
+void makePlotsVsTime(int whichPrM=1, double whichField=135, int firstRun=150,  int maxRun=480, string addString="FillingStage" ){
 
   string basename="/data/PurityMonitor/Filling/";
   int whichAvg=1000;		     
@@ -57,9 +58,9 @@ void makePlotsVsTime(int whichPrM=2, double whichField=50, int firstRun=342,  in
 
   double varDouble[20];
 
-  string var[]     = {"rawVoltageRMSk", "rawVoltageRMSa",  "lampPeak", "lampIntegral", "lifeCathodeOnly", "lifeApprox", "lifetime", "QK", "QA", "QKcorr", "QAcorr", "t1", "t2", "t3"};
+  string var[]     = {"rawVoltageRMSk", "rawVoltageRMSa",  "lampPeak", "lampIntegral", "lifeCathodeOnly", "lifeApprox", "lifetime", "QK", "QA", "QKcorr", "QAcorr", "t1", "t2", "t3", "errLife", "errLifePlus", "errLifeMinus", "R", "errR"};
 
-  string niceVar[] = {"Raw Waveform RMS cathode", "Raw Waveform RMS anode", "Lamp Peak", "Lamp Integral", "Lifetime from Cathode fit", "Lifetime approximation", "Lifetime", "QK [mV]", "QA [mV]", "QK corrected [mV]", "QA corrected [mV]", "t1 [s]", "t2 [s]", "t3 [s]"};
+  string niceVar[] = {"Raw Waveform RMS cathode", "Raw Waveform RMS anode", "Lamp Peak", "Lamp Integral", "Lifetime from Cathode fit", "Lifetime approximation", "Lifetime", "QK [mV]", "QA [mV]", "QK corrected [mV]", "QA corrected [mV]", "t1 [s]", "t2 [s]", "t3 [s]", "Error on lifetime", "Error Plus", "Error Minus", "R", "Error on R"};
 
   int nvar = sizeof(var)/sizeof(var[0]);
 
@@ -99,7 +100,9 @@ void makePlotsVsTime(int whichPrM=2, double whichField=50, int firstRun=342,  in
   fprintf(outFile, "\n");
   
   bool doneTitle=false;
-
+  double correctionFactor=1.0;
+  double electronicsFactor=0.80;
+  double gridTransparencyFactor=1.16;
   
   for (int ie=0; ie<lifeTree->GetEntries(); ie++){
     lifeTree->GetEntry(ie);
@@ -109,8 +112,8 @@ void makePlotsVsTime(int whichPrM=2, double whichField=50, int firstRun=342,  in
     metaTree->GetEntryWithIndex(runTree);
     
     if (fields[0] != whichField) continue;
-    if (fields[1] != whichField*2) continue;
-    if (fields[2] != whichField*4) continue;
+    // if (fields[1] != whichField*2) continue;
+    // if (fields[2] != whichField*4) continue;
     if (!doneTitle) {
       title+=Form("PrM %d, field %i-%i-%i V/cm", whichPrM, int(fields[0]), int(fields[1]), int(fields[2]));
       doneTitle=true;
@@ -122,6 +125,22 @@ void makePlotsVsTime(int whichPrM=2, double whichField=50, int firstRun=342,  in
       yValues[ivar].push_back(TMath::Abs(varDouble[ivar]));
       //      cout << niceVar[ivar] << " " << varDouble[ivar] << " " << yValues[ivar].at(count) << endl;
     }
+
+    correctionFactor=1.0;
+
+    // IF PRM 1 and RUN IS LESS THAN 817 APPLY GAIN CALIBRATION
+    if (whichPrM==1 && runTree<817) correctionFactor=correctionFactor/electronicsFactor;
+    if (runTree<911) correctionFactor=correctionFactor/gridTransparencyFactor;
+    
+    yValues[5].at(count)*=TMath::Log(yValues[10].at(count)/yValues[9].at(count));
+    yValues[6].at(count)*=TMath::Log(yValues[10].at(count)/yValues[9].at(count));
+    yValues[7].at(count)*=correctionFactor;
+    yValues[9].at(count)*=correctionFactor;
+    yValues[5].at(count)/=TMath::Log(yValues[10].at(count)/yValues[9].at(count));
+    yValues[6].at(count)/=TMath::Log(yValues[10].at(count)/yValues[9].at(count));
+
+    
+
 
     cout << runMeta << " " << runTree << " " << runNoise << " " << timestamp << " " << yValues[7].at(count) << " " << yValues[4].at(count) << " " << yValues[6].at(count) << endl;
 
@@ -168,7 +187,7 @@ void makePlotsVsTime(int whichPrM=2, double whichField=50, int firstRun=342,  in
     htemp->GetXaxis()->SetTimeFormat("%d-%b");
     gK->SetMarkerStyle(8);
 
-    htemp->GetXaxis()->SetNdivisions(ndiv, 2, 1, kFALSE);
+    //    htemp->GetXaxis()->SetNdivisions(ndiv, 2, 1, kFALSE);
 
     htemp->Draw();
     gK->Draw("lp");

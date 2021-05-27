@@ -9,6 +9,15 @@ DIRECTORY=/data/PurityMonitor/Filling/
 
 for run in $DIRECTORY/Run*
 do
+
+    if [ -f $run/BadFlag ]; then
+	continue;
+    fi
+
+    if [ -f $run/Calibration ]; then
+	continue;
+    fi
+
 #  echo $run
   if [ ! -f $run/PrM2_lifeInfo.root ]; then
       if [ -f $run/PrM2_filtAvg.root ]; then

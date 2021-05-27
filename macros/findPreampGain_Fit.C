@@ -67,13 +67,15 @@ void findPreampGain_Fit(){
 
   bool isCathode=true;
 
-  string ch;
+  string ch1, ch2;
   string chNice;
   if (isCathode){
-    ch+="ch1";
+    ch1+="ch1";
+    ch2+="ch2";
     chNice+="Cathode";
   } else {
-    ch+="ch3";
+    ch1+="ch2";
+    ch2+="ch1";
     chNice+="Anode";
   }
 
@@ -90,8 +92,10 @@ void findPreampGain_Fit(){
   // string whichprm = "1"; <--- Linda's
 
   //PrM1: ch1 = cathode, ch2 = anode; PrM2: ch4 = cathode, ch 5 = anode
-  string name1 = "/data/PurityMonitor/GasTests/Run129/RawAverages_ch1.root";
-  string name2 = "/data/PurityMonitor/GasTests/Run131/RawAverages_ch2.root"; 
+  string name1="/data/PurityMonitor/GasTests//Run129/PrM1_filtAvg.root";
+  string name2="/data/PurityMonitor/GasTests//Run131/PrM1_filtAvg.root";
+  // string name1 = "/data/PurityMonitor/GasTests/Run129/RawAverages_ch1.root";
+  // string name2 = "/data/PurityMonitor/GasTests/Run131/RawAverages_ch2.root"; 
 
   string preamp1 = "B";
   string preamp2 = "A";
@@ -101,15 +105,15 @@ void findPreampGain_Fit(){
   TFile *f1 = new TFile(name1.c_str(), "read");
   TFile *f2 = new TFile(name2.c_str(), "read");
 
-  TGraph *g1 = (TGraph*)f1->Get("justAvg");
-  TGraph *g2 = (TGraph*)f2->Get("justAvg");
+  TGraph *g1 = (TGraph*)f1->Get(Form("gfil_%s", ch.c_str()));
+  TGraph *g2 = (TGraph*)f2->Get(Form("gfil_ch2"));//, ch.c_str()));
 
-  for (int ip=0; ip<g1->GetN(); ip++){
-    g1->GetX()[ip]*=1e-9; // convert from ns to s
-    g2->GetX()[ip]*=1e-9;
-    g1->GetY()[ip]*=1e-3; // convert from mV to V
-    g2->GetY()[ip]*=1e-3;
-  }
+  // for (int ip=0; ip<g1->GetN(); ip++){
+  //   g1->GetX()[ip]*=1e-9; // convert from ns to s
+  //   g2->GetX()[ip]*=1e-9;
+  //   g1->GetY()[ip]*=1e-3; // convert from mV to V
+  //   g2->GetY()[ip]*=1e-3;
+  // }
 
   g1->SetLineColor(kRed);
   g2->SetLineColor(kBlue);
@@ -156,11 +160,11 @@ void findPreampGain_Fit(){
 
   int ngraphs=10;
   for (int i=0; i<ngraphs; i++){
-    TGraph *g1t = (TGraph*)f1->Get(Form("avg100/gavg100_%i", i)); 
+    TGraph *g1t = (TGraph*)f1->Get(Form("avg100/gfil_%s_%i", ch.c_str(), i)); 
     if (isCathode) somek1[i] = getMinimum(g1t);
     else somek1[i] = getMaximum(g1t);
     delete g1t;
-    TGraph *g2t = (TGraph*)f2->Get(Form("avg100/gavg100_%i", i));
+    TGraph *g2t = (TGraph*)f2->Get(Form("avg100/gfil_ch2_%i", i));//ch.c_str(), i));
     if (isCathode) somek2[i] = getMinimum(g2t);
     else somek2[i] = getMaximum(g2t);
     delete g2t;

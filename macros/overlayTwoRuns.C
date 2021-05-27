@@ -1,4 +1,4 @@
-void overlayTwoRuns(string baseline="/data/PurityMonitor/Filling/", int whichPrM=2, int run1=241, int run2=243, int run3=243, string title="Field 50.100.200Vcm", string leg1="July 29th", string leg2="July 30th", string leg3="Ignore"){
+void overlayTwoRuns(string baseline="/data/PurityMonitor/Filling/", int whichPrM=1, int run1=1252, int run2=1250, int run3=1250, string title="Field 50.100.200Vcm", string leg1="Standard", string leg2="Swapped", string leg3="Ignore"){
 
   string chname[2];
 

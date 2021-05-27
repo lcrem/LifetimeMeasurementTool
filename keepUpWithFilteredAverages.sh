@@ -10,6 +10,12 @@ DIRECTORY=/data/PurityMonitor/Filling/
 for run in $DIRECTORY/Run*
 do
 #  echo $run
+    
+    if [ -f $run/BadFlag ]; then
+	continue;
+    fi
+
+
   if [ -f $run/RawAverages_ch4.root ]; then 
 
       if [ ! -f $run/PrM2_filtAvg.root ]; then
