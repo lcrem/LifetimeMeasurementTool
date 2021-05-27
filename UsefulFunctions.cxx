@@ -328,7 +328,7 @@ Double_t UsefulFunctions::fittingFunction(Double_t *x, Double_t *par){
 
 
 
-Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, double tTheory[3], double lifetime[20], double lifeErrors[20], bool saveCanvas){
+Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, TGraph *gSum, int whichPrM, double tTheory[3], double lifetime[20], double lifeErrors[20], bool saveCanvas){
       
   int nK      = gK->GetN();
   double *xK  = gK->GetX();
@@ -374,10 +374,12 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
   double *errx = new double [nK];
   double *erryK = new double [nK];
   double *erryA = new double [nK];
+  double *erryS = new double [nK];
   for (int ip=0; ip<nK; ip++){
     errx[ip]=(xK[1]-xK[0])*0.5;
     erryK[ip]=errQK;
     erryA[ip]=errQA;
+    erryS[ip]=TMath::Sqrt(errQK*errQK+errQA*errQA);
   }
       
  
@@ -407,6 +409,7 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
   TF1 *funcK = new TF1("funcK", greenFunction, xK[0], xK[nK-1], 6);
   funcK->SetParameters(tauelecK, tauLife, tK, fittedK, tGK, 0.);
   funcK->SetParLimits(0,tauelecK*0.5, tauelecK*1.5);
+  funcK->FixParameter(0, tauelecK);
   //funcK->SetParLimits(1, 0., 0.001);
   funcK->FixParameter(1, 0.001);
   funcK->SetParLimits(2, -1.e-5, +1.e-5);
@@ -435,7 +438,6 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
 
   if (resultK->Status()==0){
     
-    //    funcK->Draw("same");
     gK->GetListOfFunctions()->Add(funcK);    
 
     tauLife = funcK->GetParameter(1);
@@ -467,6 +469,11 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
     
     // TMatrixDSym cov = resultK->GetCovarianceMatrix(); 
     // cov.Print();
+  } else {
+    QK = fittedK;
+    
+    newQK = QK / getCorrectionFactor(tGK-tK, tauelecK, 0.001);
+
   }
 
     
@@ -541,19 +548,20 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
     double factorA = 1/(1/tauLife-1/tauelecA);
     double Q0A = fittedA*(tA-tGA)/(exp(-(tA)/tauelecA)-exp(-(tA)/tauLife))/factorA;
 
-    if ( (tA<=tGA) || (tGA<=tTheory[0]+tTheory[1]-0.1E-3 ) || (tA<=tTheory[0]+tTheory[1]-0.1E-3)  ){
-      tGA = tTheory[0]+tTheory[1];
-      tA = tTheory[0]+tTheory[1]+tTheory[2];
-    }
+    // if ( (tA<=tGA) || (tGA<=tTheory[0]+tTheory[1]-0.1E-3 ) || (tA<=tTheory[0]+tTheory[1]-0.1E-3)  ){
+    //   tGA = tTheory[0]+tTheory[1];
+    //   tA = tTheory[0]+tTheory[1]+tTheory[2];
+    // }
 
-    TF1 *funcA = new TF1("funcA", greenFunction, tTheory[0]+tTheory[1]-0.1E-3, xA[nA-1], 6);
+    TF1 *funcA = new TF1("funcA", greenFunction, 0.1e-3, xA[nA-1], 6);
     funcA->SetParameters(tauelecA, tauLife, tGA, fittedA, tA, 0.);
     funcA->SetParLimits(0,tauelecA*0.5, tauelecA*1.5);
-    //funcA->SetParLimits(1, 0., 0.001);
+    funcA->SetParLimits(1, 0., 0.001);
+    funcA->FixParameter(0, tauelecA);
     funcA->FixParameter(1, 0.001);
-    funcA->SetParLimits(2, tTheory[0]+tTheory[1]-0.1E-3, xA[nA-1]);
+    funcA->SetParLimits(2, 0.1e-3, xA[nA-1]);
     funcA->SetParLimits(3, 0., Q0A*3);
-    funcA->SetParLimits(4, tTheory[0]+tTheory[1]-0.1E-3, xA[nA-1]);
+    funcA->SetParLimits(4, 0.1E-3, xA[nA-1]);
     funcA->SetParLimits(5, -5., 5.);
 
     funcA->SetParName(0, "TauEl (s)");
@@ -568,7 +576,7 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
     //    std::cout << "Initial pars are " << tauelecA << " " << tauLife << " " << tGA << " " <<  Q0A << " " <<  tA  << std::endl;
 
     TGraphErrors *gAerr = new TGraphErrors(nA, xA, yA, errx, erryA);
-    TFitResultPtr resultA = gAerr->Fit("funcA","QRES", "", tTheory[0]+tTheory[1]-0.1E-3, xA[nA-1]);
+    TFitResultPtr resultA = gAerr->Fit("funcA","QRES", "", tTheory[0]+tTheory[1]*0.5, xA[nA-1]);
     resultA->Print();
 
     if (resultA->Status()==0 && (funcA->GetParameter(4)>funcA->GetParameter(2)) ){
@@ -604,15 +612,86 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
 
       std::cout << tA << " " << tGA << std::endl;
       errtA=errtGA=3.e-6;
-      QA = newQA = fittedA;
+      QA  = fittedA;
+      newQA = QA / getCorrectionFactor(tA-tGA, tauelecA, 0.001);
       errNewQA = errQA = 1.5;
     }
     
     
    
   }
-      
-          
+
+
+  bool fitSum=false;
+  if (fitSum){
+    
+    TF1 *funcSum = new TF1("funcSum", greenFunctionSum, xA[0], xA[nA-1], 10);
+    funcSum->SetParName(0, "TauEl_K (s)");
+    funcSum->SetParName(1, "TauLife (s)");
+    funcSum->SetParName(2, "TK (s)");
+    funcSum->SetParName(3, "Q0_K (mV)");
+    funcSum->SetParName(4, "TGK (s)");
+    funcSum->SetParName(5, "Baseline (mV)");
+    funcSum->SetParName(6, "TauEl_A (s)");
+    funcSum->SetParName(7, "TGA (s)");
+    funcSum->SetParName(8, "Q0_A (mV)");
+    funcSum->SetParName(9, "TA (s)");
+    
+    funcSum->SetParameters(tauelecK, tauLife, tK, QK, tGK, 0., tauelecA, tGA, QA, tA);
+
+    // funcSum->SetParLimits(0,tauelecK*0.5, tauelecK*1.5);
+    funcSum->FixParameter(1, 0.001);
+    funcSum->SetParLimits(2, tK-1.e-6, tK+1.e-6);
+    funcSum->SetParLimits(3, Q0K*3, 0);
+    funcSum->SetParLimits(4, xK[0], xK[nK-1]);
+    funcSum->SetParLimits(5, -5., 5.);
+    // funcSum->SetParLimits(6,tauelecA*0.5, tauelecA*1.5);
+    funcSum->SetParLimits(7, tTheory[0]+tTheory[1]-0.1E-3, xA[nA-1]);
+    funcSum->SetParLimits(8, 0., QA*3);
+    funcSum->SetParLimits(9, tTheory[0]+tTheory[1]-0.1E-3, xA[nA-1]);
+
+
+    funcSum->SetLineColor(kBlue);
+    funcSum->SetLineWidth(2);
+
+    int nS = gSum->GetN();
+    double *xS = gSum->GetX();
+    double *yS = gSum->GetY();
+
+    TGraphErrors *gSumerr = new TGraphErrors(nS, xS, yS, errx, erryS);
+    TFitResultPtr resultSum = gSumerr->Fit("funcSum","QRES", "", xS[0], xS[nS-1]);
+    resultSum->Print();
+
+    gSum->GetListOfFunctions()->Add(funcSum);    
+
+    TCanvas *ctemp = new TCanvas("ctemp");
+    gSum->Draw("Ap");
+    funcSum->Draw("same");
+    ctemp->Print("Temp.png");
+
+    tK = funcSum->GetParameter(2);
+    errtK = funcSum->GetParError(2);
+    tGK = funcSum->GetParameter(4);
+    errtGK = funcSum->GetParError(4);
+    lifetime[10] = funcSum->GetParameter(0);
+    newQK = funcSum->GetParameter(3);
+    errNewQK = funcSum->GetParError(3);
+    QK = funcSum->GetMinimum();
+    errQK = QK*errNewQK/newQK;
+
+    tGA = funcSum->GetParameter(7);
+    errtGA = funcSum->GetParError(7);
+    tA = funcSum->GetParameter(9);
+    errtA = funcSum->GetParError(9);
+    newQA = funcSum->GetParameter(8);
+    errNewQA = funcSum->GetParError(8);
+    QA = funcSum->Eval(tA) - funcSum->Eval(tGA);
+    errQA = QA*errNewQA/newQA;
+    lifetime[11] = funcSum->GetParameter(6);
+
+
+  }
+
       
   // std::cout << " Expected vs measured time at cathode " << tTheory[0] << " " << fittedKtime - fittedKstartTime << std::endl;
   // std::cout << " Expected vs measured time at anode " << tTheory[2] << " " << fittedAtime - fittedAstartTime << std::endl;
@@ -654,13 +733,13 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
   errt2 = t3*TMath::Sqrt( (errtGK/tGK)*(errtGK/tGK) + (errtGA/tGA)*(errtGA/tGA));
   errt3 = t3*TMath::Sqrt( (errtGA/tGA)*(errtGA/tGA) + (errtA/tA)*(errtA/tA));
 
-  if (t2>(tTheory[1]+100.e-6)) {
+  if (t2>(tTheory[1]+200.e-6)) {
     errt2 = t2 = tTheory[1];
   }
 
-  if (t3>(3*tTheory[2])){
-    errt3 = t3 = tTheory[2];
-  }
+  // if (t3>(3*tTheory[2])){
+  //   errt3 = t3 = tTheory[2];
+  // }
 
 
 
@@ -681,7 +760,7 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
     return -1;
   }
   
-  
+
   
   //  QK *= gainAoverK;
   
@@ -712,6 +791,19 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
     lifetime[4] = newQK;
     lifetime[5] = newQA;
     R = TMath::Abs(newQA/newQK);
+
+    // apply grid transparency correction
+    R *= gridTransparencyRenorm;
+
+    lifetime[13] = R;
+    errR = R*TMath::Sqrt((errNewQA/QA)*(errNewQA/QA)+ (errNewQK/QK)*(errNewQK/QK));
+    
+    // error of 5% on relative gain between A/K
+    if (errR<0.05*R) errR=R*0.05;
+    lifeErrors[13] = errR;
+
+    if (R>=1.0) return -2;
+
     lifetime[0] = (1/TMath::Abs(TMath::Log(R)))*(t2 + 0.5*(t1+t3)); 
 
     // while(count < 20){
@@ -741,8 +833,7 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
     
     TF1 f ("lifetime function", "([1]/[3])*(TMath::SinH([3]/(2*x))/TMath::SinH([1]/(2*x)))*TMath::Exp(-([2]+0.5*([1]+[3]))/x) - [0]", -0.1, 0.1);
     f.SetParameters(R, t1, t2, t3);
-    errR = R*TMath::Sqrt((errNewQA/QA)*(errNewQA/QA)+ (errNewQK/QK)*(errNewQK/QK));
-    
+
     ROOT::Math::WrappedTF1 wf1(f);
 	
     // Create the Integrator
@@ -757,20 +848,26 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
 
     // calculate syst errors, let's give it a try
 
-    double newLife, lifeErr, tmpErrPlus, tmpErrMinus;
-    lifeErr=0;
+    double newLife, lifeErrPlus, lifeErrMinus, tmpErrPlus, tmpErrMinus;
+    lifeErrPlus=lifeErrMinus=0;
 
     f.SetParameters(R-errR, t1, t2, t3);
     brf.Solve();
     newLife      = TMath::Abs(brf.Root() ) ;
     tmpErrMinus  = TMath::Abs(lifetime[1]-newLife);
-    
-    f.SetParameters(R+errR, t1, t2, t3);
-    brf.Solve();
-    newLife = TMath::Abs(brf.Root() ) ;
-    tmpErrPlus  = TMath::Abs(lifetime[1]-newLife);
-    lifeErr += TMath::Power( TMath::Max(tmpErrPlus, tmpErrMinus), 2);
-    // std::cout << tmpErrMinus << " " << tmpErrPlus << " " << TMath::Sqrt(lifeErr) << std::endl;
+    lifeErrMinus += TMath::Power( tmpErrMinus, 2);
+
+    if ( (R+errR)<1) {
+      f.SetParameters(R+errR, t1, t2, t3);
+      brf.Solve();
+      newLife = TMath::Abs(brf.Root() ) ;
+      tmpErrPlus  = TMath::Abs(lifetime[1]-newLife);
+      lifeErrPlus  += TMath::Power( tmpErrPlus, 2);
+      // std::cout << tmpErrMinus << " " << tmpErrPlus << " " << TMath::Sqrt(lifeErr) << std::endl;
+    } else {
+      lifetime[1]=newLife;
+      return -3;
+    }
 
     f.SetParameters(R, t1+errt1, t2, t3);
     brf.Solve();
@@ -781,8 +878,10 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
     brf.Solve();
     newLife = TMath::Abs(brf.Root() ) ;
     tmpErrMinus  = TMath::Abs(lifetime[1]-newLife);
-    lifeErr += TMath::Power( TMath::Max(tmpErrPlus, tmpErrMinus), 2);
-    // std::cout << tmpErrMinus << " " << tmpErrPlus << " " << TMath::Sqrt(lifeErr) << std::endl;
+    lifeErrPlus  += TMath::Power( tmpErrPlus, 2);
+    lifeErrMinus += TMath::Power( tmpErrMinus, 2);
+
+    std::cout << tmpErrMinus << " " << tmpErrPlus << " " << TMath::Sqrt(lifeErrMinus) << std::endl;
 
     f.SetParameters(R, t1, t2+errt2, t3);
     brf.Solve();
@@ -793,8 +892,10 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
     brf.Solve();
     newLife = TMath::Abs(brf.Root() ) ;
     tmpErrMinus  = TMath::Abs(lifetime[1]-newLife);
-    lifeErr += TMath::Power( TMath::Max(tmpErrPlus, tmpErrMinus), 2);
-    // std::cout << tmpErrMinus << " " << tmpErrPlus << " " << TMath::Sqrt(lifeErr) << std::endl;
+    lifeErrPlus  += TMath::Power( tmpErrPlus, 2);
+    lifeErrMinus += TMath::Power( tmpErrMinus, 2);
+
+    std::cout << tmpErrMinus << " " << tmpErrPlus << " " << TMath::Sqrt(lifeErrMinus) << std::endl;
 
     f.SetParameters(R, t1, t2, t3+errt3);
     brf.Solve();
@@ -805,17 +906,20 @@ Int_t UsefulFunctions::calculateLifetime(TGraph *gK, TGraph *gA, int whichPrM, d
     brf.Solve();
     newLife = TMath::Abs(brf.Root() ) ;
     tmpErrMinus  = TMath::Abs(lifetime[1]-newLife);
-    lifeErr += TMath::Power( TMath::Max(tmpErrPlus, tmpErrMinus), 2);
+    lifeErrPlus  += TMath::Power( tmpErrPlus, 2);
+    lifeErrMinus += TMath::Power( tmpErrMinus, 2);
+
     
-    // std::cout << tmpErrMinus << " " << tmpErrPlus << " " << TMath::Sqrt(lifeErr) << std::endl;
+    std::cout << tmpErrMinus << " " << tmpErrPlus << " " << TMath::Sqrt(lifeErrMinus) << std::endl;
 
-    lifeErr = TMath::Sqrt(lifeErr);
+    lifeErrPlus  = TMath::Sqrt(lifeErrPlus);
+    lifeErrMinus = TMath::Sqrt(lifeErrMinus);
 
-    lifeErrors[1] = lifeErr;
-    lifeErrors[0] = lifetime[0]*lifeErrors[1]/lifetime[1];
+    lifeErrors[1] = lifeErrPlus;
+    lifeErrors[0] = lifeErrMinus;
 
     std::cout << "R and err " << R << " +/- " << errR << std::endl;
-    std::cout << "Life and err " << lifetime[1]*1e6 << " +/- " << lifeErrors[1]*1e6 << std::endl;
+    std::cout << "Life and err " << lifetime[1]*1e6 << " + " << lifeErrPlus*1e6 << " - " << lifeErrMinus*1e6 << std::endl;
 
 
 
@@ -891,6 +995,19 @@ Double_t UsefulFunctions::greenFunction(Double_t *x, Double_t *par) {
   Double_t bigExp=fallExp*(1 - TMath::Exp(-1*(t1-t0)*(1./T_life - 1./F_elec)));
   return baseline+Q0*start*bigExp;
 }
+
+Double_t UsefulFunctions::greenFunctionSum(Double_t *x, Double_t *par) {
+
+  Double_t cathodePars[6]={par[0],par[1],par[2],par[3],par[4],par[5]};
+  Double_t anodePars[6]={par[6],par[1],par[7],par[8],par[9],par[5]};
+  
+  Double_t cathodeVal=greenFunction(x,cathodePars);
+  Double_t anodeVal=greenFunction(x,anodePars);
+
+  return cathodeVal+anodeVal;
+  
+}
+
 
 Double_t UsefulFunctions::funcXenon(Double_t *x, Double_t *par) {
   Double_t baseline=par[5];

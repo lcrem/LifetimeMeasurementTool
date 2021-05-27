@@ -45,6 +45,8 @@ Double_t funcLauraBaseline(Double_t *x, Double_t *par);
 
 Double_t greenFunction(Double_t *x, Double_t *par);
 
+const std::string prmLocation[3]={"None", "Middle", "Bottom"};
+
 // string howManyAvg[5] = {"justAvg", "avg25", "avg50", "avg100", "avg200"};
 // int howManyAvgInt[5] = {1000, 25, 50, 100, 200};
 // int howManyGraphs[5] = {1, 40, 20, 10, 5};
@@ -66,6 +68,8 @@ int main(int argc, char *argv[]){
   int whichPrM=0;
   int runNumber;
   int runNoise=-1;
+
+  double PrM1cathodeRenorm = 1./0.8;
 
   if((argc!=4 && argc!=5)){
     std::cerr << "Usage : " << argv[0] << " [basename] [runNumber] [whichPrM] (noiseOnlyRunNumber)" << std::endl;
@@ -114,7 +118,7 @@ int main(int argc, char *argv[]){
   double fields[3], distance[3], tTheory[3];
   getFields (elog, fields, whichPrM);
   cout << " The three fields are " << fields[0] << " " << fields[1] << " " << fields[2] << " V/cm" << endl;
-  if (fields[0]==0){
+  if (fields[0]==0 && fields[1]==0 && fields[2]==0){
     cout << "I do not usually process fields at 0Vcm, are you sure that is what you want to do?" << endl;
     cout << "... Well sorry I am going to have to quit this program now. Bye!!" << endl;
     return -1;
@@ -184,7 +188,6 @@ int main(int argc, char *argv[]){
   string noiseFile   = basename + Form("/Run%03d/", runNoise) + Form("PrM%i", whichPrM) + "_filtAvg.root";
 
   string chname[2];
-  string chnamenice[2] = {"anode", "cathode"};
 
   TCanvas *c = new TCanvas("c");
 
@@ -275,9 +278,9 @@ int main(int argc, char *argv[]){
 
   double lifeCathodeOnly, lifeApprox, lifetime;
   double QK, QA, QKcorr, QAcorr;
-  double t1, t2, t3;
-  double tauelecA, tauelecK;
-  double errQK, errQA, errQKcorr, errQAcorr, errt1, errt2, errt3, errLifeCathode, errLifeApprox, errLife;
+  double t1, t2, t3, v1, v2, v3;
+  double tauelecA, tauelecK, R, errR;
+  double errQK, errQA, errQKcorr, errQAcorr, errt1, errt2, errt3, errLifeCathode, errLifeApprox, errLife, errLifePlus, errLifeMinus;
   int numAveraged;
   
   double rawVoltageRMSk = getRawVoltageRMS(basename, runNumber, chname[0]);
@@ -308,19 +311,30 @@ int main(int argc, char *argv[]){
   lifeTree->Branch("QA",              &QA              );
   lifeTree->Branch("QKcorr",          &QKcorr          );
   lifeTree->Branch("QAcorr",          &QAcorr          );
+  lifeTree->Branch("R",               &R               );
+  lifeTree->Branch("errR",            &errR            );
   lifeTree->Branch("t1",              &t1              );
   lifeTree->Branch("t2",              &t2              );
   lifeTree->Branch("t3",              &t3              );
+  lifeTree->Branch("v1",              &v1              );
+  lifeTree->Branch("v2",              &v2              );
+  lifeTree->Branch("v3",              &v3              );
   lifeTree->Branch("tauElecK",        &tauelecK        );
   lifeTree->Branch("tauElecA",        &tauelecA        );
+  lifeTree->Branch("errLife",         &errLife         );
+  lifeTree->Branch("errLifePlus",     &errLifePlus     );
+  lifeTree->Branch("errLifeMinus",    &errLifeMinus    );
+  lifeTree->Branch("gridTransparencyRenorm", &gridTransparencyRenorm);
+  
+  //  printf("GRID TRANSPARENCY RENORM ISS %4.3f \n", gridTransparencyRenorm);
 
+  TGraph *gSum;
 
   for (int inum=0; inum<nnum; inum++){
 
     // if(inum==0) saveCanvas=true;
     // else saveCanvas=false;
 
-    double finalNumbers[2][3]; // [0 anode, 1 cathode] [0 amplitude, 1 start time, 2 peak time]
     for (int igraph=0; igraph<howManyGraphs[inum]; igraph++){
       
       for (int ich=0; ich<2; ich++){
@@ -334,14 +348,14 @@ int main(int argc, char *argv[]){
 	  if (inum==0) gnoise[ich] = (TGraph*)fnoise->Get(Form("gfil_%s", chname[ich].c_str()));
 	  else gnoise[ich] = (TGraph*) fnoise->Get(Form("%s/gfil_%s_%d", howManyAvg[inum].c_str(), chname[ich].c_str(), igraph)); 
 
-	  for (int ip=0; ip<gfil[ich]->GetN(); ip++){
-	    gfil[ich]->GetY()[ip] -= gnoise[ich]->GetY()[ip];
+	  for (int ip=0; ip<gfil[ich]->GetN(); ip++){	
+	    if (ip < gnoise[ich]->GetN()) gfil[ich]->GetY()[ip] -= gnoise[ich]->GetY()[ip];
+	    if (whichPrM==1 && ich==0) gfil[ich]->GetY()[ip]*=PrM1cathodeRenorm;
+	    //	    if(ich==1) gfil[ich]->GetY()[ip]*=gridTransparencyRenorm;
 	  }
 	  
 	  
 	  if (inum==0){
-	    outLife->cd();
-	    gfil[ich]->Write(Form("gfin_%s", chname[ich].c_str()));
 
 	    
 	    // TGraph *gpower = FFTtools::makePowerSpectrumVoltsSeconds(gfil[ich]);
@@ -350,8 +364,14 @@ int main(int argc, char *argv[]){
 
 	    if (ich==1){
 	      TGraph *gdiff = new TGraph(gfil[0]->GetN());
-	      for (int ip=0; ip<gfil[0]->GetN(); ip++) gdiff->SetPoint(ip, gfil[0]->GetX()[ip], gfil[0]->GetY()[ip]-gfil[1]->GetY()[ip]);
+	      gSum = new TGraph (gfil[0]->GetN());
+	      for (int ip=0; ip<gfil[0]->GetN(); ip++){
+		gdiff->SetPoint(ip, gfil[0]->GetX()[ip], gfil[0]->GetY()[ip]-gfil[1]->GetY()[ip]);
+		gSum->SetPoint(ip, gfil[0]->GetX()[ip], gfil[0]->GetY()[ip]+gfil[1]->GetY()[ip]);
+	      }
+	      outLife->cd();
 	      gdiff->Write("gdiff");
+	      gSum->Write("gsum");
 	    }
 
 	  }
@@ -360,7 +380,7 @@ int main(int argc, char *argv[]){
 
       double tlifetime[20], terrs[20];
       
-      int ok = UsefulFunctions::calculateLifetime(gfil[0], gfil[1],  whichPrM-1, tTheory, tlifetime, terrs, saveCanvas);
+      int ok = UsefulFunctions::calculateLifetime(gfil[0], gfil[1],  gSum, whichPrM-1, tTheory, tlifetime, terrs, saveCanvas);
       
       numAveraged=howManyAvgInt[inum];
  
@@ -377,9 +397,15 @@ int main(int argc, char *argv[]){
       t3         = tlifetime[8];
       errt3      = terrs[8];
       lifeApprox = tlifetime[0];
-      errLifeApprox = terrs[0];
+      v1 = distance[0]/t1;
+      v2 = distance[1]/t2;
+      v3 = distance[2]/t3;
+
+      //errLifeApprox = terrs[0];
       lifetime   = tlifetime[1];
-      errLife    = terrs[1];
+      errLifeMinus = terrs[0];
+      errLifePlus  = terrs[1];
+      errLife = TMath::Max(errLifeMinus, errLifePlus);
       QKcorr     = tlifetime[4];
       errQKcorr  = terrs[4];
       QAcorr     = tlifetime[5];
@@ -388,6 +414,8 @@ int main(int argc, char *argv[]){
       errLifeCathode = terrs[9];
       tauelecK   = tlifetime[10];
       tauelecA   = tlifetime[11];
+      R          = tlifetime[13];
+      errR       = terrs[13];
       
       if (numAveraged==1000){
 	
@@ -396,21 +424,34 @@ int main(int argc, char *argv[]){
 	//lifeCathodeOnly = getLifetimeFromCathode(gfil[0], tlifetime);
 	// lifeCathodeOnly = getLifetimeFromCathodeRyan(gfil[1], tlifetime, true);
 	// lifeCathodeOnly = getLifetimeFromCathodeRyan(gfil[0], tlifetime, false);
-
-	printf("Lifetime from Cathode [us] : %8.2f +/- %8.2f \n", lifeCathodeOnly*1e6, errLifeCathode*1e6);
-	printf("Lifetime [us]              : %8.2f +/- %8.2f \n", lifetime*1e6, errLife*1e6);
+	
+	// printf("GRID TRANSPARENCY RENORM ISS %4.3f \n", gridTransparencyRenorm);
+	
+	//	printf("Lifetime from Cathode [us] : %8.2f +/- %8.2f \n", lifeCathodeOnly*1e6, errLifeCathode*1e6);
+	if (ok==1) printf("Lifetime [us]              : %8.2f + %8.2f - %8.2f \n", lifetime*1e6, errLifePlus*1e6, errLifeMinus*1e6);
+	else if (ok==-2) printf("Sensitivity reached, lifetime cannot be calculated. \n");
+	else if (ok==-3) printf("Sensitivity reached. Lifetime is %8.2f or above. \n", lifetime*1e6);
 	printf("QK [mV]                    : %8.2f +/- %8.2f \n", QK, errQK);
 	printf("QA [mV]                    : %8.2f +/- %8.2f \n", QA, errQA);
 	printf("QKcorr [mV]                : %8.2f +/- %8.2f \n", QKcorr, errQKcorr);
 	printf("QAcorr [mV]                : %8.2f +/- %8.2f \n", QAcorr, errQAcorr);
+	printf("Grid transparency factor   : %8.2f \n", gridTransparencyRenorm);
+	printf("R                          : %8.2f +/- %8.2f \n", R, errR);
 	printf("t1 [us]                    : %8.2f +/- %8.2f \n", t1*1e6, errt1*1e6);
 	printf("t2 [us]                    : %8.2f +/- %8.2f \n", t2*1e6, errt2*1e6);
 	printf("t3 [us]                    : %8.2f +/- %8.2f \n", t3*1e6, errt3*1e6);
 
-	fprintf(outFile, "Lifetime from Cathode [us] : %8.2f +/- %8.2f \n", lifeCathodeOnly*1e6, errLifeCathode*1e6);
-	fprintf(outFile, "Lifetime [us]              : %8.2f +/- %8.2f \n", lifetime*1e6, errLife*1e6);
+	fprintf(outFile, "Purity Monitor %d %s, field %d-%d-%d V/cm\n", whichPrM, prmLocation[whichPrM].c_str(), int(fields[0]), int(fields[1]), int(fields[2]));
+	//	fprintf(outFile, "Lifetime from Cathode [us] : %8.2f +/- %8.2f \n", lifeCathodeOnly*1e6, errLifeCathode*1e6);
+	if (ok==1) fprintf(outFile, "Lifetime [us]              : %8.2f + %8.2f - %8.2f \n", lifetime*1e6, errLifePlus*1e6, errLifeMinus*1e6);
+	else if (ok==-2) fprintf(outFile, "Sensitivity reached, lifetime cannot be calculated. \n");
+	else if (ok==-3) fprintf(outFile, "Sensitivity reached. Lifetime is %8.2f or above. \n", lifetime*1e6);
 	fprintf(outFile, "QK [mV]                    : %8.2f +/- %8.2f \n", QK, errQK);
 	fprintf(outFile, "QA [mV]                    : %8.2f +/- %8.2f \n", QA, errQA);
+	fprintf(outFile, "QK corrected [mV]          : %8.2f +/- %8.2f \n", QKcorr, errQKcorr);
+	fprintf(outFile, "QA corrected [mV]          : %8.2f +/- %8.2f \n", QAcorr, errQAcorr);
+	fprintf(outFile, "Grid transparency factor   : %8.2f \n", gridTransparencyRenorm);
+	fprintf(outFile, "R                          : %8.2f +/- %8.2f \n", R, errR);
 	fprintf(outFile, "t1 [us]                    : %8.2f +/- %8.2f \n", t1*1e6, errt1*1e6);
 	fprintf(outFile, "t2 [us]                    : %8.2f +/- %8.2f \n", t2*1e6, errt2*1e6);
 	fprintf(outFile, "t3 [us]                    : %8.2f +/- %8.2f \n", t3*1e6, errt3*1e6);
@@ -419,9 +460,12 @@ int main(int argc, char *argv[]){
 	TPaveText *pav = new TPaveText(0.5, 0.11, 0.89, 0.55, "NB NDC");
 	pav->SetFillColor(kWhite);
 	//	pav->AddText(Form("Lifetime from Cathode [us] : %8.2f +/- %8.2f ", lifeCathodeOnly*1e6, errLifeCathode*1e6));
-	pav->AddText(Form("Lifetime [us] : %8.2f +/- %8.2f ", lifetime*1e6, errLife*1e6));
+	if (ok==1) pav->AddText(Form("Lifetime [us] : %8.2f + %8.2f - %8.2f  ", lifetime*1e6, errLifePlus*1e6, errLifeMinus*1e6));
+	else if (ok==-2) pav->AddText(Form("Sensitivity reached, lifetime cannot be calculated. \n"));
+	else if (ok==-3) pav->AddText(Form("Sensitivity reached. Lifetime is %8.2f or above. \n", lifetime*1e6));
 	pav->AddText(Form("QK [mV] : %8.2f +/- %8.2f ", QK, errQK));
 	pav->AddText(Form("QA [mV] : %8.2f +/- %8.2f ", QA, errQA));
+	pav->AddText(Form("R  : %8.2f +/- %8.2f ", R, errR));
 	pav->AddText(Form("t1 [us] : %8.2f +/- %8.2f ", t1*1e6, errt1*1e6));
 	pav->AddText(Form("t2 [us] : %8.2f +/- %8.2f ", t2*1e6, errt2*1e6));
 	pav->AddText(Form("t3 [us] : %8.2f +/- %8.2f ", t3*1e6, errt3*1e6));
@@ -438,16 +482,14 @@ int main(int argc, char *argv[]){
 	c->Print(Form("%s/PurityMonitor%d_filAvg_subNoise.png", runname.c_str(), whichPrM));
 	c->Print(Form("%s/PurityMonitor%d_filAvg_subNoise.root", runname.c_str(), whichPrM));
       
-
-
-	// c->cd();
-	// gStyle->SetOptFit(1);
-	// if (max<5) max = 5.;
-	// gfil[0]->GetYaxis()->SetRangeUser(min*1.2, max*1.2);
-	// gfil[0]->SetTitle(Form("PrM%d, Filtered Averages and Noise subtracted;Time [ns];Amplitude [mV]", whichPrM));
-	// gfil[0]->Draw("Al");
-	// c->Print(Form("%s/PurityMonitor%d_cathodeOnlyFit.png", runname.c_str(), whichPrM));
+	gSum->SetTitle(Form("PrM%d, %d.%d.%dVcm, Cathode+Anode;Time [s];Amplitude [mV]", whichPrM, int(fields[0]), int(fields[1]), int(fields[2])));
+	gSum->Draw("Al");
+	pav->Draw();
+	c->Print(Form("%s/PurityMonitor%d_sum.png", runname.c_str(), whichPrM));
 	
+	outLife->cd();
+	gfil[0]->Write(Form("gfin_%s", chname[0].c_str()));
+	gfil[1]->Write(Form("gfin_%s", chname[1].c_str()));
 
 	
       }
@@ -573,7 +615,7 @@ TGraph *smoothGraph(TGraph *g, int nnn){
   int n = g->GetN();
   double *x = g->GetX();
   double *y = g->GetY();
-  double *newy = new double [1000000];
+  double *newy = new double [1500000];
 
   int count=0;
   int insidecount=0;
